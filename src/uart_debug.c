@@ -24,7 +24,8 @@
 UART_HandleTypeDef* debugUART = NULL;
 
 /* local functions*/
-void uart_debug_transmit(void);
+static void uart_debug_transmit(void);
+static void uart_debug_carriageReturn(void);
 
 uint8_t* debugUARTBuffer = (uint8_t*) SRAM2_UART_DEBUG_TX_BUFF;
 uint8_t debugUARTBufferTemp[DEBUG_UART_TEMP_BUFFER_LEN]; //= (uint8_t*) SRAM2_UART_DEBUG_TEMP_BUFF;
@@ -206,7 +207,23 @@ void uart_debug_newline(void) {
     uart_debug_addToBuffer(&newlineChar, 1);
 }
 
+static void uart_debug_carriageReturn(void) {
+    uint8_t newlineChar = '\r';
+    uart_debug_addToBuffer(&newlineChar, 1);
+}
+
 /* puts a newline-terminated character string on the wire (limited to the transmit buffer length for sanity) */
+/*void uart_debug_sendline(char* str) {
+    uint32_t len = 0;
+    for(; len < DEBUG_UART_TRANSMIT_BUFFER_LEN; ++len) {
+        if(str[len] == '\n') {
+            break;
+        }
+    }
+    uart_debug_addToBuffer((uint8_t*) str, len + 1); // to account for the newline char/
+}*/
+
+
 void uart_debug_sendline(char* str) {
     uint32_t len = 0;
     for(; len < DEBUG_UART_TRANSMIT_BUFFER_LEN; ++len) {
@@ -214,7 +231,10 @@ void uart_debug_sendline(char* str) {
             break;
         }
     }
-    uart_debug_addToBuffer((uint8_t*) str, len + 1); /* to account for the newline char*/
+    uart_debug_addToBuffer((uint8_t*) str, len + 1); // to account for the newline char/
+    uart_debug_carriageReturn();
+    uart_debug_newline();
+
 }
 
 /* puts a null-terminated character string on the wire (limited to the transmit buffer length for sanity) */

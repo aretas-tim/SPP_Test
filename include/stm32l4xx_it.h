@@ -49,7 +49,10 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
-#include "cube_hal.h"
+//#include "cube_hal.h"
+#include "stm32l476xx.h"
+#include "stm32l4xx_nucleo.h"
+#include "stm32l4xx_hal.h"
 
 void NMI_Handler(void);
 void HardFault_Handler(void);

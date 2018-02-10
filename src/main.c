@@ -229,7 +229,7 @@ int main(void)
   HAL_Delay(10); //will force systick to fire
 
 
-  uart_debug_sendline("USB Micro Started!\n");
+  uart_debug_sendline("USB Micro Started!\r\n");
 
 
 
@@ -261,7 +261,7 @@ int main(void)
         }
 
         U2F_HID_SecondTick(); //prevents the U2F HID system from locking up due to an unresponsive or ended host process
-
+        uart_debug_sendline("Second Tick!\n");
 
 
     }
@@ -809,7 +809,7 @@ void DEBUG_UART_PERIPH_Init(void) {
     HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(USART3_IRQn);*/
 #endif
-    huart_debug.Init.BaudRate = 250000;
+    huart_debug.Init.BaudRate = 230400;
     huart_debug.Init.WordLength = UART_WORDLENGTH_8B;
     huart_debug.Init.StopBits = UART_STOPBITS_1;
     huart_debug.Init.Parity = UART_PARITY_NONE;
@@ -950,7 +950,8 @@ void GPIO_Init(void) {
     GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
     GPIO_InitStruct.Alternate = 0; //no alternate
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-    GPIOC->BRR = GPIO_PIN_4|GPIO_PIN_5; //always safe to pull 100mA unless we're connected to an OTG host, but that's handled in the USB section
+    GPIOC->BRR = GPIO_PIN_4; //always safe to pull 100mA unless we're connected to an OTG host, but that's handled in the USB section
+    GPIOC->BSRR = GPIO_PIN_5;
 
     //IPC pins
     //COMMENTED OUT FOR DEVBOARD
