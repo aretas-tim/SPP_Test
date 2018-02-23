@@ -100,16 +100,16 @@ volatile uint8_t secondTicksUpdated = false;
 bool testAddEntryFlag = false;
 
 /* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void GPIO_Init(void);
-static void DEBUG_UART_PERIPH_Init(void);
-void SPI_MS_Init(void);
-void SPI_ICC_Init(void);
-void DMA_Init(void);
-void TIMER2_Init(void); //timer2 is going to run at full CPU speed and can be used to time things with high precision
-void TIMER7_Init(void);
-void TIMER3_Init(void);
-void TIMER17_Init(void); //secondTicks
+void Init_systemClockConfig(void);
+static void Init_gpioInit(void);
+static void Init_debugUartInit(void);
+void Init_spiMsInit(void);
+void Init_spiIccInit(void);
+void Init_dmaInit(void);
+void Init_timer2init(void); //timer2 is going to run at full CPU speed and can be used to time things with high precision
+void Init_timer7init(void);
+void Init_timer3init(void);
+void Init_timer17init(void); //secondTicks
 void memDump(uint8_t* start, size_t end);
 void testFunc(uint32_t ignored);
 void testKBCallback(void);
@@ -145,23 +145,23 @@ int main(void)
 
 
   /* Configure the system clock to 80 MHz */
-  SystemClock_Config();
+  Init_systemClockConfig();
   //__HAL_RCC_RTC_ENABLE(); //no RTC, handled on secure micro. we don't care about this so-called 'real' time
   //RTC_Init();
   //WWDG->CR = 0x0;
-  DMA_Init(); //do this first
-  GPIO_Init();
+  Init_dmaInit(); //do this first
+  Init_gpioInit();
   MX_USB_DEVICE_Init();
-  DEBUG_UART_PERIPH_Init();
-  TIMER3_Init();
-  TIMER7_Init();
-  TIMER17_Init();
+  Init_debugUartInit();
+  Init_timer3init();
+  Init_timer7init();
+  Init_timer17init();
 
   //ScanI2C();
   LED_Init(&hi2c, GPIOB, GPIO_PIN_4);
   LED_SetLEDs(true);
-  //SPI_MS_Init(); //@TODO reenable this
-  SPI_ICC_Init();
+  //Init_spiMsInit(); //@TODO reenable this
+  Init_spiIccInit();
 
   UART_Debug_Init(&huart_debug);
 

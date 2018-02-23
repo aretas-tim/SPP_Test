@@ -27,8 +27,7 @@
   * @param  None
   * @retval None
   */
-void SystemClock_Config(void)
-{
+void Init_systemClockConfig(void){
 
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -79,7 +78,7 @@ void SystemClock_Config(void)
 }
 
 
-void TIMER2_Init(void) {
+void Init_timer2init(void) {
     __TIM2_CLK_ENABLE();
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
@@ -107,7 +106,7 @@ void TIMER2_Init(void) {
 
 }
 
-void TIMER7_Init(void) { //for led update callbacks
+void Init_timer7init(void) { //for led update callbacks
     __TIM7_CLK_ENABLE();
     TIM7->CNT = 0x0;
     TIM7->ARR = 0xF804;
@@ -123,7 +122,7 @@ void TIMER7_Init(void) { //for led update callbacks
 }
 
 //timer 8 is used to run the USB LEDs in PWM mode
-void TIMER3_Init(void) {
+void Init_timer3init(void) {
 
     __TIM3_CLK_ENABLE();
     //SO MANY OPTIONS
@@ -153,7 +152,7 @@ void TIMER3_Init(void) {
 
 /* timer17 is used to update secondTicks
  */
-void TIMER17_Init(void) {
+void Init_timer17init(void) {
     __TIM17_CLK_ENABLE();
 
     TIM17->CR1 = 0x0080; //ARR in use, timer not enabled
@@ -174,7 +173,7 @@ void TIMER17_Init(void) {
 }
 
 /* init function for the debug UART (USART2 on devboard, USART1 on device)*/
-void DEBUG_UART_PERIPH_Init(void) {
+void Init_debugUartInit(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
@@ -221,7 +220,7 @@ void DEBUG_UART_PERIPH_Init(void) {
         * Free pins are configured automatically as Analog (this feature is enabled through
         * the Code Generation settings)
 */
-void GPIO_Init(void) {
+void Init_gpioInit(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /* GPIO Ports Clock Enable */
@@ -334,7 +333,7 @@ void GPIO_Init(void) {
 #endif /* DEVICE_0_A_1_1_U */
 }
 
-void SPI_MS_Init(void) {
+void Init_spiMsInit(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
@@ -370,7 +369,7 @@ void SPI_MS_Init(void) {
     HAL_SPI_Init(&hspi_ms);
 }
 
-void SPI_ICC_Init(void) {
+void Init_spiIccInit(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
@@ -453,7 +452,7 @@ void SPI_ICC_Init(void) {
 }
 
 //handles basic DMA init, make sure this is called before the DMAs are further set up
-void DMA_Init(void) {
+void Init_dmaInit(void) {
     __HAL_RCC_DMA2_CLK_ENABLE();
     __HAL_RCC_DMA1_CLK_ENABLE(); //clock both DMAs
 

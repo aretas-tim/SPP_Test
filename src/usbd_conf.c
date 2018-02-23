@@ -57,7 +57,7 @@ extern USBD_StatusTypeDef USBD_LL_BatteryCharging(USBD_HandleTypeDef *pdev);
 static void SystemClockConfig_Resume(void);
 /* USER CODE END 1 */
 void HAL_PCDEx_SetConnectionState(PCD_HandleTypeDef *hpcd, uint8_t state);
-extern void SystemClock_Config(void);
+extern void Init_systemClockConfig(void);
 
 /*******************************************************************************
                        LL Driver Callbacks (PCD -> USB Device Library)
@@ -565,7 +565,7 @@ void HAL_PCDEx_LPM_Callback(PCD_HandleTypeDef *hpcd, PCD_LPM_MsgTypeDef msg)
   case PCD_LPM_L0_ACTIVE:
     if (hpcd->Init.low_power_enable)
     {
-      SystemClock_Config();
+      Init_systemClockConfig();
       
       /* Reset SLEEPDEEP bit of Cortex System Control Register */
       SCB->SCR &= (uint32_t)~((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));
@@ -629,7 +629,7 @@ void USBD_static_free(void *p)
   */
 static void SystemClockConfig_Resume(void)
 {
-  SystemClock_Config();
+  Init_systemClockConfig();
 }
 /* USER CODE END 5 */
 
