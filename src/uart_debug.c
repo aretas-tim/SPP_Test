@@ -336,4 +336,24 @@ void uart_debug_dumpbyte(uint8_t b) {
     uart_debug_addToBuffer(debugUARTBufferTemp, len);
 }
 
+/* dumps memory to the debug UART*/
+void memDump(uint8_t* start, size_t end) {
+    size_t pos = 0;
+    size_t chunk = 256; //how many bytes to dump at once before delaying so the UART can catch up
+    uint32_t delay = 60; /* roughly how long it should take to dump a chunk*/
+    while(pos < end) {
+        if((end - pos) < chunk) {
+            chunk = end - pos; //last chunk
+        }
+        uart_debug_sendstring("MemDump: Pos ");
+        uart_debug_hexprint32((uint32_t)start + pos);
+        uart_debug_sendstring(" Len ");
+        uart_debug_hexprint32(chunk);
+        uart_debug_newline();
+        uart_debug_hexdump(start + pos, chunk);
+        pos += chunk;
+        HAL_Delay(delay);
+    }
+}
+
 #endif /* UART_DEBUG_C */
