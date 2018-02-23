@@ -11,19 +11,7 @@
 
 
 /* this is the BACKUP battery sense! */
-uint16_t ADC_GetVBat(ADC_HandleTypeDef* hadc) {
-    /*//ADC1->ISR &= 0xFFFFFFE3; //clear EOC, EOS, OVR
-    if(!(ADC1->ISR & ADC_ISR_ADRDY)) { //not ready
-        ADC1->ISR |= ADC_ISR_ADRDY;
-    }
-    while(!(ADC1->ISR & ADC_ISR_ADRDY)); //spin until ready
-    ADC1->SQR1 = 0x000000480; //one conversion, on channel 18 (VBat)
-    ADC1->CR |= ADC_CR_ADSTART; //start conversion
-    //while(ADC1->CR & ADC_CR_ADSTART); //spin until complete
-    while(!(ADC1->ISR & ADC_ISR_EOC)); //spin until end of conversion flag is set
-    uint16_t result = ADC1->DR; //clears end of conversion flag automatically
-    //ADC1->ISR |= ADC_ISR_EOS; //clear end of sequence flag
-    //while(ADC1->CR & ADC_CR_ADSTART); //spin until complete*/
+uint16_t Adc_getVBat(ADC_HandleTypeDef* hadc) {
 
     ADC123_COMMON->CCR |= ADC_CCR_VBATEN;
 
@@ -43,24 +31,12 @@ uint16_t ADC_GetVBat(ADC_HandleTypeDef* hadc) {
     //uart_debug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
-
     ADC123_COMMON->CCR &= ~ADC_CCR_VBATEN; //disable channel to prevent draining the backup battery after making the measurement
 
     return ((uint16_t) result);
 }
-uint16_t ADC_GetPCIE12VSense(ADC_HandleTypeDef* hadc) {
-    /*//ADC1->ISR &= 0xFFFFFFE3; //clear EOC, EOS, OVR
-    if(!(ADC1->ISR & ADC_ISR_ADRDY)) { //not ready
-        ADC1->ISR |= ADC_ISR_ADRDY;
-    }
-    while(!(ADC1->ISR & ADC_ISR_ADRDY)); //spin until ready
-    ADC1->SQR1 = 0x000000240; //one conversion, on channel 9 (PCI-E Sense)
-    ADC1->CR |= ADC_CR_ADSTART; //start conversion
-    //
-    while(!(ADC1->ISR & ADC_ISR_EOC)); //spin until end of conversion flag is set
-    uint16_t result = ADC1->DR; //clears end of conversion flag automatically
-    //ADC1->ISR |= ADC_ISR_EOS; //clear end of sequence flag
-    //while(ADC1->CR & ADC_CR_ADSTART); //spin until complete*/
+uint16_t Adc_getPCIE12VSense(ADC_HandleTypeDef* hadc) {
+
     ADC_ChannelConfTypeDef sConfig;
 
     sConfig.Channel = ADC_CHANNEL_9; //PCI-E Sense on PA4
@@ -83,19 +59,7 @@ uint16_t ADC_GetPCIE12VSense(ADC_HandleTypeDef* hadc) {
 
 }
 
-uint16_t ADC_GetVRefInt(ADC_HandleTypeDef* hadc) {
-    /*//ADC1->ISR &= 0xFFFFFFE3; //clear EOC, EOS, OVR
-    if(!(ADC1->ISR & ADC_ISR_ADRDY)) { //not ready
-        ADC1->ISR |= ADC_ISR_ADRDY;
-    }
-    while(!(ADC1->ISR & ADC_ISR_ADRDY)); //spin until ready
-    ADC1->SQR1 = 0x000000480; //one conversion, on channel 18 (VBat)
-    ADC1->CR |= ADC_CR_ADSTART; //start conversion
-    //while(ADC1->CR & ADC_CR_ADSTART); //spin until complete
-    while(!(ADC1->ISR & ADC_ISR_EOC)); //spin until end of conversion flag is set
-    uint16_t result = ADC1->DR; //clears end of conversion flag automatically
-    //ADC1->ISR |= ADC_ISR_EOS; //clear end of sequence flag
-    //while(ADC1->CR & ADC_CR_ADSTART); //spin until complete*/
+uint16_t Adc_getVRefInt(ADC_HandleTypeDef* hadc) {
 
     ADC_ChannelConfTypeDef sConfig;
 
@@ -118,8 +82,8 @@ uint16_t ADC_GetVRefInt(ADC_HandleTypeDef* hadc) {
     return ((uint16_t) result);
 }
 
-uint16_t ADC_GetVCCmV(ADC_HandleTypeDef* hadc) {
-    uint16_t vrefint = ADC_GetVRefInt(hadc);
+uint16_t Adc_getVCCmV(ADC_HandleTypeDef* hadc) {
+    uint16_t vrefint = Adc_getVRefInt(hadc);
     if(vrefint) {
         return (uint16_t) ((uint32_t) ADC_VREFINT_RESULT_TO_VCC_MV_DIVIDEND / vrefint);
     } else {
@@ -130,10 +94,8 @@ uint16_t ADC_GetVCCmV(ADC_HandleTypeDef* hadc) {
     }
 }
 
-uint16_t ADC_GetVBus(ADC_HandleTypeDef* hadc) {
+uint16_t Adc_getVBus(ADC_HandleTypeDef* hadc) {
 
-    //GPIOB->BSRR = GPIO_PIN_2; //enable sense
-    //HAL_Delay(1); //wait for it to stabilize
 
     ADC_ChannelConfTypeDef sConfig;
 
@@ -152,14 +114,12 @@ uint16_t ADC_GetVBus(ADC_HandleTypeDef* hadc) {
 
     HAL_ADC_Stop(hadc);
 
-    //GPIOB->BRR = GPIO_PIN_2; //disable sense
 
     return ((uint16_t) result);
 }
 
-uint16_t ADC_GetVMain(ADC_HandleTypeDef* hadc) {
-    //GPIOB->BSRR = GPIO_PIN_2; //enable sense
-    //HAL_Delay(1); //wait for it to stabilize
+uint16_t Adc_getVMain(ADC_HandleTypeDef* hadc) {
+
 
     ADC_ChannelConfTypeDef sConfig;
 
@@ -178,16 +138,15 @@ uint16_t ADC_GetVMain(ADC_HandleTypeDef* hadc) {
 
     HAL_ADC_Stop(hadc);
 
-    //GPIOB->BRR = GPIO_PIN_2; //disable sense
 
     return ((uint16_t) result);
 }
 
-void ADC_EnableSense(void) {
+void Adc_enableSense(void) {
     GPIOB->BSRR = GPIO_PIN_2; //enable sense
     HAL_Delay(1); //wait for it to stabilize
 }
 
-void ADC_DisableSense(void) {
+void Adc_disableSense(void) {
     GPIOB->BRR = GPIO_PIN_2;
 }

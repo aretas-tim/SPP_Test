@@ -1346,7 +1346,7 @@ uint32_t TUNNEL_GetOTCSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
 }
 
 uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
-    uint16_t resultCounts = ADC_GetVBat(&hadc);
+    uint16_t resultCounts = Adc_getVBat(&hadc);
     uint8_t chargeEnabled = false;
     uint8_t batteryLow = false;
     if(resultCounts < ADC_VBAT_LOW_COUNTS) {
@@ -1370,10 +1370,10 @@ uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_AUTHFAIL);
         return TUNNEL_RSP_AUTHFAIL;
     } else {
-        uint32_t vbatCounts = ADC_GetVBat(&hadc);
-        uint32_t vrefintCounts = ADC_GetVRefInt(&hadc);
-        uint32_t pcieCounts = ADC_GetPCIE12VSense(&hadc);
-        uint32_t vbusCounts = ADC_GetVBus(&hadc); //@TODO massage vbus appropriately
+        uint32_t vbatCounts = Adc_getVBat(&hadc);
+        uint32_t vrefintCounts = Adc_getVRefInt(&hadc);
+        uint32_t pcieCounts = Adc_getPCIE12VSense(&hadc);
+        uint32_t vbusCounts = Adc_getVBus(&hadc); //@TODO massage vbus appropriately
         /*uart_debug_addToBuffer("VBus Counts: ", 13);
         uart_debug_printuint32(vbusCounts);
         uart_debug_newline();
