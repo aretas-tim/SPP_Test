@@ -181,12 +181,12 @@ uint32_t TUNNEL_TPM_Unseal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2
 uint32_t TUNNEL_TPM_CreateWrapKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData);
 uint32_t TUNNEL_TPM_LoadKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c/*, AuthSession* as*/, uint8_t* keyAuthData);
 
-uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore);
-uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
-uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore);
+uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/);
 
 uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c);
-uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/);
 
 uint32_t TUNNEL_RTC_Set(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc);
 uint32_t TUNNEL_RTC_Get(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc);

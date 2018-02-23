@@ -180,7 +180,7 @@ uint32_t TUNNEL_DeriveSessionKey(uint8_t* derivedKey, uint8_t* derivedCounter, u
 
 /* TUNNEL_InitHandler
  * nonceIn must be the nonce incoming from the host and of length 32
- * transportKeyStore is initialized and valid and contains the transport key and the salt used to derive it
+ * transportAuthData_tdKeyStore is initialized and valid and contains the transport key and the salt used to derive it
  *
  * this function then computes a sessionKey, used for both the AES encryption and the HMAC authentication
  * it then returns to the host:
@@ -630,7 +630,7 @@ size_t TUNNEL_AES_CTR_CryptInPlace(TransportTunnel* tunnel, uint8_t* buffer, siz
 
 #ifdef TPM_TUNNEL_COMMANDS
 /* define space makes its own authsession, as it ends immediately once the space is defined (due to authdata insertion)*/
-uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore) {
+uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -720,7 +720,7 @@ uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cb
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -756,7 +756,7 @@ uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CT
 
     return TUNNEL_RSP_SUCCESS;
 }
-uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -785,7 +785,7 @@ uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, 
     return -1;
 }
 
-uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;

@@ -101,7 +101,7 @@ volatile uint32_t ticks = 0;
 
 
 
-CombinedStore authKeyStore;
+AuthData_tdCombinedStore authAuthData_tdKeyStore;
 TransportTunnel tunnel;
 
 size_t comm_rx_buffer_needed = TUNNEL_HEADER_LEN;
