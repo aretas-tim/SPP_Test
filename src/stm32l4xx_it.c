@@ -333,7 +333,7 @@ void DMA2_Channel1_IRQHandler(void) {
 void EXTI4_IRQHandler(void) {
     if(EXTI->PR1 & GPIO_PIN_4) {
         __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_4);
-        ICC_DeselectedCallbackHandler();
+        Icc_deselectedCallbackHandler();
         uart_debug_sendline("NSS rising edge interrupt.\n");
     }
 }
@@ -341,7 +341,7 @@ void EXTI4_IRQHandler(void) {
 void EXTI15_10_IRQHandler(void) {
     if(EXTI->PR1 & GPIO_PIN_15) {
         __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_15);
-        ICC_DeselectedCallbackHandler();
+        Icc_deselectedCallbackHandler();
         uart_debug_sendline("NSS rising edge interrupt.\n");
     }
 }

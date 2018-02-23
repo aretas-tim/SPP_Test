@@ -222,9 +222,9 @@ int main(void)
   SPI_FLASH_SetHold(false);
   SPI_FLASH_Reset();
 
-  //ICC_Init(&hspi_icc, GPIOA, GPIO_PIN_1, GPIOA, GPIO_PIN_0); //devboard
-  ICC_Init(&hspi_icc, GPIOC, GPIO_PIN_13, GPIOD, GPIO_PIN_2);
-  ICC_Start();
+  //Icc_init(&hspi_icc, GPIOA, GPIO_PIN_1, GPIOA, GPIO_PIN_0); //devboard
+  Icc_init(&hspi_icc, GPIOC, GPIO_PIN_13, GPIOD, GPIO_PIN_2);
+  Icc_start();
 
   HAL_Delay(10); //will force systick to fire
 
@@ -497,13 +497,13 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef* hspicb) {
     if(hspicb == &hspi_ms) {
         SPI_FLASH_IT_RxComplete(&hspi_ms);
     } else if (hspicb == &hspi_icc) {
-        ICC_DMARxCompleteCallback();
+        Icc_dmaRxCompleteCallback();
     }
 }
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef* hspicb) {
     if (hspicb == &hspi_icc) {
-        ICC_DMATxCompleteCallback();
+        Icc_dmaTxCompleteCallback();
     }
 }
 
