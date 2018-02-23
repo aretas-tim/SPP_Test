@@ -34,8 +34,6 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-  //initialize HSE and PLL
-
   // USB timing is correct
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -46,17 +44,6 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  /*
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-    RCC_OscInitStruct.HSEState = RCC_HSI_ON;
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM = 4;
-    RCC_OscInitStruct.PLL.PLLN = 40;
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;*/
-
 
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
@@ -72,7 +59,6 @@ void SystemClock_Config(void)
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_USB;
   PeriphClkInit.Usart3ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLLSAI1;
-  //PeriphClkInit.PLLSAI1.PLLSAI1M = 3;
   PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
   PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
   PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV4;
@@ -91,52 +77,6 @@ void SystemClock_Config(void)
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
-
-
-
-/**
-  * @}
-  */
-
-/*void ADC_Init(void) {
-    __HAL_RCC_ADC_CLK_ENABLE();
-
-    ADC123_COMMON->CCR |= ADC_CCR_VBATEN | ADC_CCR_TSEN | ADC_CCR_VREFEN; //everything else is okay
-
-    ADC_ChannelConfTypeDef sConfig;
-
-    hadc.Instance = ADC1;
-
-    hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-    hadc.Init.Resolution = ADC_RESOLUTION_12B;
-    hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc.Init.ScanConvMode = ADC_SCAN_DISABLE;
-    hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-    hadc.Init.LowPowerAutoWait = DISABLE;
-    hadc.Init.ContinuousConvMode = DISABLE;
-    hadc.Init.NbrOfConversion = 1;
-    hadc.Init.DiscontinuousConvMode = DISABLE;
-    hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-    hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-    hadc.Init.DMAContinuousRequests = ENABLE;
-    hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-    hadc.Init.OversamplingMode = DISABLE;
-    HAL_ADC_Init(&hadc);
-
-    sConfig.Channel = ADC_CHANNEL_0; //VREF internal
-    sConfig.Rank = 1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
-    sConfig.SingleDiff = ADC_SINGLE_ENDED;
-    sConfig.OffsetNumber = ADC_OFFSET_NONE;
-    sConfig.Offset = 0;
-    HAL_ADC_ConfigChannel(&hadc, &sConfig);
-
-    HAL_ADCEx_Calibration_Start(&hadc, ADC_SINGLE_ENDED); //calibrate ADC
-
-
-}*/
-
-
 
 
 void TIMER2_Init(void) {
@@ -163,25 +103,12 @@ void TIMER2_Init(void) {
     TIM2->CNT = 0x0;
     TIM2->PSC = 0x1;
     TIM2->ARR = 0xFFFFFFFF;
-    //TIM2->CCR1 |= 0x0001; //enable the timer
-    /* basically just clears the timer*/
+
 
 }
 
 void TIMER7_Init(void) { //for led update callbacks
     __TIM7_CLK_ENABLE();
-    //TIM_MasterConfigTypeDef sMasterConfig;
-
-    /*htim6.Instance = TIM7;
-    htim6.Init.Prescaler = 0;
-    htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim6.Init.Period = 0xFFFF;
-    HAL_TIM_Base_Init(&htim6);
-
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig);*/
-
     TIM7->CNT = 0x0;
     TIM7->ARR = 0xF804;
     TIM7->PSC = 0x0015; //prescale by 21
@@ -266,19 +193,7 @@ void DEBUG_UART_PERIPH_Init(void) {
     HAL_NVIC_SetPriority(UART4_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(UART4_IRQn);
 
-    /*__USART3_CLK_ENABLE();
 
-    huart_debug.Instance = USART3;
-
-    GPIO_InitStruct.Pin = GPIO_PIN_4;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(USART3_IRQn);*/
 #endif
     huart_debug.Init.BaudRate = 230400;
     huart_debug.Init.WordLength = UART_WORDLENGTH_8B;
@@ -317,7 +232,7 @@ void GPIO_Init(void) {
     __GPIOC_CLK_ENABLE();
     __GPIOD_CLK_ENABLE();
     __GPIOH_CLK_ENABLE();
-    //__GPIOF_CLK_ENABLE();
+
 
 #ifdef DEVICE_0_A_1_1_U
     //SPI Mass Storage helper stuff (HOLD, WP, not actually used but has to be present for it to work properly)
@@ -335,29 +250,7 @@ void GPIO_Init(void) {
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     GPIOB->BSRR = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
 
-    //USB pins (not including USB D+/D-)
 
-    //PB14: USB switch /OE Output
-    //@TODO re-enable this
-    /*
-    GPIO_InitStruct.Pin = GPIO_PIN_14;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD; //wired OR with the secure Micro
-    GPIO_InitStruct.Pull = GPIO_NOPULL; //external pullup
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    GPIOB->BRR = GPIO_PIN_14; //enable USB
-    */
-
-    //PB13: USB switch select Output
-    //@TODO re-enable this
-    /*
-    GPIO_InitStruct.Pin = GPIO_PIN_13;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL; //external pulldown
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    GPIOB->BRR = GPIO_PIN_13; //select us as the USB device
-    */
     //@TODO re-enable the above. this is so it doesn't interfere with the secure micro's USB for now
     GPIO_InitStruct.Pin = GPIO_PIN_13 | GPIO_PIN_14;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -381,12 +274,7 @@ void GPIO_Init(void) {
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
     GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-    //GPIOC->BSRR = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8; //high-impedance for now
 
-
-    //Power/Charge Control Pins
-
-    //PA2 Charge Active Input
     //PA3 Power Good Input
     GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -441,33 +329,6 @@ void GPIO_Init(void) {
     GPIO_InitStruct.Pull = GPIO_PULLUP; //OD output, prevents contention
     GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-    /*
-    //PA1 (wakeup / transfer ready) for devboard
-    GPIOA->BSRR = GPIO_PIN_1;
-    GPIO_InitStruct.Pin = GPIO_PIN_1;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    GPIO_InitStruct.Alternate = 0; //no alternate
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    //PA0 IPC IRQ line (active low output)
-    GPIOA->BSRR = GPIO_PIN_0; //set this first to prevent a false request
-    GPIO_InitStruct.Pin = GPIO_PIN_0;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP; //OD output, prevents contention
-    GPIO_InitStruct.Alternate = 0; //no alternate
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    //setup board LED on PA5 @TODO remove this
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Alternate = 0; //no alternate
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); */
-
 
 
 #endif /* DEVICE_0_A_1_1_U */
@@ -492,8 +353,6 @@ void SPI_MS_Init(void) {
     GPIO_InitStruct.Pull = GPIO_PULLDOWN; //ensure a valid level at all times, low on the clock to maintain polarity
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    //HAL_NVIC_SetPriority(SPI1_IRQn, 1, 0);
-    //HAL_NVIC_EnableIRQ(SPI1_IRQn);
 
 #endif /* DEVICE_0_A_1_1_U */
     hspi_ms.Init.Mode = SPI_MODE_MASTER;
@@ -533,17 +392,7 @@ void SPI_ICC_Init(void) {
     HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0); //lower priority than the DMA interrupt
     __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_15);
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); //enable interrupt
-     //re-enable for non-devboard
-    /*
-    SYSCFG->EXTICR[2] = (SYSCFG->EXTICR[2] & ~SYSCFG_EXTICR2_EXTI4) | SYSCFG_EXTICR2_EXTI4_PA; //clear the EXTI4 bits, set to PA4
-    EXTI->RTSR1 |= EXTI_RTSR1_RT4; //enable rising edge interrupt on external pins 15
-    EXTI->IMR1 |= EXTI_IMR1_IM4; //unmask the interrupt request
 
-
-    HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0); //lower priority than the DMA interrupt
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_4);
-    HAL_NVIC_EnableIRQ(EXTI4_IRQn); //enable interrupt
-    */
 
     GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
