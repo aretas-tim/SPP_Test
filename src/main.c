@@ -60,65 +60,44 @@
 #include "usbd_hotkey_hid_if.h"
 #include "icc.h"
 
-/** @addtogroup STM32L4xx_HAL_Examples
-  * @{
-  */
+typedef enum {
+    PHASE_IDLE,
+    PHASE_HEADER,
+    PHASE_BODY
+} CommandReceivePhase;
 
-/** @addtogroup GPIO_IOToggle
-  * @{
-  */
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-
-
-
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-//static GPIO_InitTypeDef  GPIO_InitStruct;
 ADC_HandleTypeDef hadc;
 I2C_HandleTypeDef hi2c;
-
 RNG_HandleTypeDef hrng;
-
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
-
-
 SPI_HandleTypeDef hspi_ms; /* mass storage SPI */
 SPI_HandleTypeDef hspi_icc; /* intercontroller communication SPI */
 DMA_HandleTypeDef hdma_icc_rx; /* ICC DMA RX */
 DMA_HandleTypeDef hdma_icc_tx; /* ICC DMA TX */
-
 UART_HandleTypeDef huart_debug;
 TIM_HandleTypeDef htim6;
-
 RTC_HandleTypeDef hrtc;
 
 volatile uint32_t ticks = 0;
 
-//extern USBD_HandleTypeDef hUsbDeviceFS;
-
-
-
-AuthData_tdCombinedStore authAuthData_tdKeyStore;
+AuthData_tdCombinedStore authDataStore;
 TransportTunnel tunnel;
-
-size_t comm_rx_buffer_needed = TUNNEL_HEADER_LEN;
-uint8_t comm_rx_inHeader = true;
+size_t commRxBufferNeeded = TUNNEL_HEADER_LEN;
+uint8_t commRxInHeader = true;
 TUNNEL_BUFFER_CTX commandInFlight;
-
-
-
-/*mbedtls_aes_context aes_ctx;*/
 
 WorkStatus statusWork = WORK_WORKING;
 LockStatus statusLock = LOCK_LOCKED;
 
-volatile uint8_t FLAGS_DoUnlock = false;
-volatile uint8_t FLAGS_DoEnterPIN = false;
-volatile uint8_t FLAGS_DoVerifyPIN = false;
-volatile uint8_t FLAGS_DoEnterOTC = false;
+volatile uint8_t doUnlockFlag = false;
+volatile uint8_t doEnterPinFlag = false;
+volatile uint8_t doVerifyPinFlag = false;
+volatile uint8_t doEnterOtcFlag = false;
+
+uint32_t lockAtTick = 0;
+volatile uint8_t secondTicksUpdated = false;
+bool testAddEntryFlag = false;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -127,49 +106,24 @@ static void DEBUG_UART_PERIPH_Init(void);
 void SPI_MS_Init(void);
 void SPI_ICC_Init(void);
 void DMA_Init(void);
-
 void TIMER2_Init(void); //timer2 is going to run at full CPU speed and can be used to time things with high precision
 void TIMER7_Init(void);
 void TIMER3_Init(void);
 void TIMER17_Init(void); //secondTicks
-
-
 void memDump(uint8_t* start, size_t end);
 void testFunc(uint32_t ignored);
-
 void testKBCallback(void);
-
-
 uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight);
-
-
-
-/* Private functions ---------------------------------------------------------*/
-
-#define UNLOCK_TIMEOUT_TIME 36000 /* seconds */
-uint32_t lockAtTick = 0;
-//volatile uint32_t secondTicks = 0; //a counter that should get updated once per second to handle long-running things (lock timer, physical presence timeout)
-volatile uint8_t secondTicksUpdated = false;
-
-
-
+//test stuff
+void testCallback(void);
 
 size_t (*receiveAvailableFunc) (void);
 size_t (*receiveDataFunc) (uint8_t*, size_t);
 uint8_t (*receiveByteFunc) (void);
 
-//test stuff
-void testCallback(void);
-bool flag_testAddEntry = false;
 
 
 
-
-/**
-  * @brief  Main program
-  * @param  None
-  * @retval None
-  */
 int main(void)
 {
 
@@ -272,22 +226,8 @@ int main(void)
 }
 
 void testCallback(void) {
-    flag_testAddEntry = true;
+    testAddEntryFlag = true;
 }
-
-void testKBCallback(void) {
-    HOTKEY_HID_SendString("Hello World!\n\0");
-}
-
-
-
-
-
-
-
-
-
-
 
 /* dumps memory to the debug UART*/
 void memDump(uint8_t* start, size_t end) {
@@ -315,11 +255,6 @@ void memDump(uint8_t* start, size_t end) {
 
 
 
-typedef enum {
-    PHASE_IDLE,
-    PHASE_HEADER,
-    PHASE_BODY
-} CommandReceivePhase;
 
 /* attempts to get a command from the byte source that is the receive***Func pointers
  * returns true if a command was successfully read, false if it was not.
