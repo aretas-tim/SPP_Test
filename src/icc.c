@@ -43,23 +43,23 @@ uint8_t Icc_commandInBuffer[ICC_COMMAND_BUFFER_LENGTH];
 
 
 
-static bool ICC_ICCCommandHandler(uint8_t command, uint16_t len); /* short commands */
-static bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len);
-static void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]);
-static void ICC_ICCTransmitCompleteCallback(void);
-static void ICC_AssertDataWaiting(void);
-static bool ICC_CheckForDataWaiting(void);
+static bool Icc_iccCommandHandler(uint8_t command, uint16_t len); /* short commands */
+static bool Icc_iccExtendedCommandHandler(uint8_t* data, uint16_t len);
+static void Icc_headerHandler(uint8_t header[ICC_HEADER_LENGTH]);
+static void Icc_iccTransmitCompleteCallback(void);
+static void Icc_assertDataWaiting(void);
+static bool Icc_checkForDataWaiting(void);
 //there is no clear, check for data waiting will clear as-needed
-static Icc_tdTargetInfo* ICC_LookupTargetInfo(uint8_t target);
-static void ICC_PreparePowerMode(void);
-static void ICC_PrepareLastTransferInfo(uint8_t target);
-static void ICC_PrepareTargetList(uint16_t len);
-static void ICC_PrepareTargetMaximumsList(uint16_t len);
-static void ICC_SetPowerMode(uint8_t mode);
-static void ICC_SetUSBEnabled(bool isUSBEnabled);
-static HAL_StatusTypeDef ICC_SetupHeaderReceive(void);
+static Icc_tdTargetInfo* Icc_lookupTargetInfo(uint8_t target);
+static void Icc_preparePowerMode(void);
+static void Icc_prepareLastTransferInfo(uint8_t target);
+static void Icc_prepareTargetList(uint16_t len);
+static void Icc_prepareTargetMaximumsList(uint16_t len);
+static void Icc_setPowerMode(uint8_t mode);
+static void Icc_setUSBEnabled(bool isUSBEnabled);
+static HAL_StatusTypeDef Icc_setupHeaderReceive(void);
 
-Icc_tdTargetInfo ICC_Target_LEDs = {
+Icc_tdTargetInfo Icc_targetLEDs = {
         .number = ICC_TARGET_LEDS,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -75,7 +75,7 @@ Icc_tdTargetInfo ICC_Target_LEDs = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo ICC_Target_Tunnel = {
+Icc_tdTargetInfo Icc_targetTunnel = {
         .number = ICC_TARGET_TUNNEL,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -91,7 +91,7 @@ Icc_tdTargetInfo ICC_Target_Tunnel = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo ICC_Target_U2F = {
+Icc_tdTargetInfo Icc_targetU2f = {
         .number = ICC_TARGET_U2F,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -107,7 +107,7 @@ Icc_tdTargetInfo ICC_Target_U2F = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo ICC_Target_Hotkey = {
+Icc_tdTargetInfo Icc_targetHotkey = {
         .number = ICC_TARGET_HOTKEY,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -122,7 +122,7 @@ Icc_tdTargetInfo ICC_Target_Hotkey = {
         .rxCallback = NULL,
         .txCompleteCallback = NULL
 };
-Icc_tdTargetInfo ICC_Target_ICC = {
+Icc_tdTargetInfo Icc_targetIcc = {
         .number = ICC_TARGET_ICC,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -133,16 +133,16 @@ Icc_tdTargetInfo ICC_Target_ICC = {
         .outBuffer = NULL,
         .outBufferLen = 0,
         .outBufferState = ICC_BUFFER_STATE_IDLE,
-        .rxCallback = ICC_ICCExtendedCommandHandler, /* short commands are handled by a separate code path, not this callback */
-        .txCompleteCallback = ICC_ICCTransmitCompleteCallback
+        .rxCallback = Icc_iccExtendedCommandHandler, /* short commands are handled by a separate code path, not this callback */
+        .txCompleteCallback = Icc_iccTransmitCompleteCallback
 };
 
-Icc_tdTargetInfo* ICC_TargetInfoList[ICC_NUM_TARGETS] = {
-        &ICC_Target_ICC,
-        &ICC_Target_LEDs,
-        &ICC_Target_Tunnel,
-        &ICC_Target_U2F,
-        &ICC_Target_Hotkey,
+Icc_tdTargetInfo* Icc_targetInfoList[ICC_NUM_TARGETS] = {
+        &Icc_targetIcc,
+        &Icc_targetLEDs,
+        &Icc_targetTunnel,
+        &Icc_targetU2f,
+        &Icc_targetHotkey,
 };
 
 
@@ -173,7 +173,7 @@ void Icc_init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPi
         return;
     }
     //set up local targets
-    bool targetSetupOkay = Icc_setupTarget(ICC_TARGET_ICC, Icc_commandInBuffer, ICC_COMMAND_BUFFER_LENGTH, ICC_ICCExtendedCommandHandler, ICC_COMMAND_BUFFER_LENGTH, ICC_ICCTransmitCompleteCallback);
+    bool targetSetupOkay = Icc_setupTarget(ICC_TARGET_ICC, Icc_commandInBuffer, ICC_COMMAND_BUFFER_LENGTH, Icc_iccExtendedCommandHandler, ICC_COMMAND_BUFFER_LENGTH, Icc_iccTransmitCompleteCallback);
     if(!targetSetupOkay) {
         uart_debug_sendline("ICC unable to start, ICC target setup failed.");
         Icc_isInitialized = false;
@@ -194,7 +194,7 @@ void Icc_start(void) {
         return;
     }
     //setup DMA to receive first packet
-    HAL_StatusTypeDef rc =  ICC_SetupHeaderReceive();
+    HAL_StatusTypeDef rc =  Icc_setupHeaderReceive();
     if(rc != HAL_OK) {
         uart_debug_sendstring("Unable to enable DMA receive during ICC Startup (");
         uart_debug_printuint8(rc);
@@ -218,7 +218,7 @@ void Icc_start(void) {
  * param txCompleteCallback a pointer to the function to call when a transmission to the secure micro has been completed, can be NULL if notification is required.
  */
 bool Icc_setupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bool (*rxCallback)(uint8_t*, uint16_t), uint16_t maxTxLen, void (*txCompleteCallback)(void)) {
-    Icc_tdTargetInfo* targetInfo = ICC_LookupTargetInfo(target);
+    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target);
     if(targetInfo == NULL) {
         return false;
     } else {
@@ -237,13 +237,13 @@ bool Icc_setupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bo
 /* param force true to force it to run (used in the NSS rising interrupt to ensure the rx fifo is flushed)
  *
  */
-HAL_StatusTypeDef ICC_SetupHeaderReceive() {
+HAL_StatusTypeDef Icc_setupHeaderReceive() {
     //if(Icc_dmaState != ICC_DMA_HEADER) { //prevent it from running when already setup
         HAL_SPIEx_FlushRxFifo(Icc_spiHandle);
         Icc_dmaState = ICC_DMA_HEADER;
         uart_debug_sendline("ICC Waiting for Header.\n");
         HAL_StatusTypeDef rc = HAL_SPI_Receive_DMA(Icc_spiHandle, Icc_headerInBuffer, ICC_HEADER_LENGTH);
-        ICC_CheckForDataWaiting(); //only ever run this now, to prevent the secure micro from being too aggressive.
+        Icc_checkForDataWaiting(); //only ever run this now, to prevent the secure micro from being too aggressive.
     //}
     return rc;
 }
@@ -258,13 +258,13 @@ void Icc_dmaRxCompleteCallback(void) {
     switch(Icc_dmaState) {
         case ICC_DMA_HEADER:
             if(transferRemainingLen) {
-                ICC_SetupHeaderReceive(); //try to get another header, something went bad with this one
+                Icc_setupHeaderReceive(); //try to get another header, something went bad with this one
 #ifdef DEBUG_ICC
                 uart_debug_sendline("ICC Received short header.\n");
 #endif /* DEBUG_ICC */
             } else {
                 Icc_dmaState = ICC_DMA_IDLE;
-                ICC_HeaderHandler(Icc_headerInBuffer); //that was easy
+                Icc_headerHandler(Icc_headerInBuffer); //that was easy
                 Icc_readyPort->BRR = Icc_readyPin; //take this low to say we're ready.
             }
             break;
@@ -297,7 +297,7 @@ void Icc_dmaRxCompleteCallback(void) {
             }
             Icc_lastTransferInfo.length = Icc_currentTransferLen - transferRemainingLen;
 
-            ICC_SetupHeaderReceive(); //set up to receive the next header
+            Icc_setupHeaderReceive(); //set up to receive the next header
             break;
         default:
             uart_debug_sendstring("ICC DMA RX Complete Callback called while in invalid Icc_dmaState: ");
@@ -359,14 +359,14 @@ void Icc_dmaTxCompleteCallback(void) {
         Icc_lastTransferInfo.target = ICC_TARGET_NULL;
     }
     Icc_waitForTransferCompleteCallback = false;
-    ICC_SetupHeaderReceive(); //prep to receive the next header
+    Icc_setupHeaderReceive(); //prep to receive the next header
 }
 
 /*if the in buffer of a target was kept around by the rxCallback
  * this will release it
  */
 void ICC_ReleaseInBuffer(uint8_t target) {
-    Icc_tdTargetInfo* targetInfo = ICC_LookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
     if(targetInfo->inBufferState == ICC_BUFFER_STATE_PROCESSING) { //only release if its in the processing state
         targetInfo->inBufferState = ICC_BUFFER_STATE_READY;
 #ifdef DEBUG_ICC
@@ -378,10 +378,10 @@ void ICC_ReleaseInBuffer(uint8_t target) {
     }
 }
 
-Icc_tdTargetInfo* ICC_LookupTargetInfo(uint8_t target) {
+Icc_tdTargetInfo* Icc_lookupTargetInfo(uint8_t target) {
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
-        if(ICC_TargetInfoList[i]->number == (target & ICC_TARGET_NUMBER_MASK)) { //mask off direction bit
-            return ICC_TargetInfoList[i];
+        if(Icc_targetInfoList[i]->number == (target & ICC_TARGET_NUMBER_MASK)) { //mask off direction bit
+            return Icc_targetInfoList[i];
         }
     }
     return NULL;
@@ -390,10 +390,10 @@ Icc_tdTargetInfo* ICC_LookupTargetInfo(uint8_t target) {
 /**
  * checks the known targets for any out data waiting and updates the IRQ line
  */
-bool ICC_CheckForDataWaiting(void) {
+bool Icc_checkForDataWaiting(void) {
     bool isDataWaiting = false;
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
-        if(ICC_TargetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
+        if(Icc_targetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
             isDataWaiting = true;
             uart_debug_sendline("ICC Has Out Data Waiting.\n");
             break;
@@ -409,7 +409,7 @@ bool ICC_CheckForDataWaiting(void) {
     return isDataWaiting;
 }
 
-void ICC_AssertDataWaiting(void) {
+void Icc_assertDataWaiting(void) {
     if(Icc_irqPort != NULL) { //this can be null, in theory.
         Icc_irqPort->BRR = Icc_irqPin;
     }
@@ -420,11 +420,11 @@ void ICC_AssertDataWaiting(void) {
  *
  * param header a 4-length uint8_t array
  */
-void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
+void Icc_headerHandler(uint8_t header[ICC_HEADER_LENGTH]) {
     uint8_t target = header[ICC_HEADER_TARGET_POS];
     uint8_t command = header[ICC_HEADER_COMMAND_POS];
     uint16_t length = ((uint16_t) header[ICC_HEADER_LENGTH_MSB_POS] << 8) + header[ICC_HEADER_LENGTH_LSB_POS];
-    Icc_tdTargetInfo* targetInfo = ICC_LookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
     uart_debug_sendstring("ICC Header Received: ");
     uart_debug_hexdump(header, ICC_HEADER_LENGTH);
     if(targetInfo == NULL) {
@@ -479,7 +479,7 @@ void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
             }
         } else {
             //out transaction, transmit
-            if((&ICC_Target_ICC == targetInfo) && (command != ICC_COMMAND_EXTENDED)) {
+            if((&Icc_targetIcc == targetInfo) && (command != ICC_COMMAND_EXTENDED)) {
                 if(targetInfo->outBufferState != ICC_BUFFER_STATE_IDLE) {
 #ifdef DEBUG_ICC
                     uart_debug_sendline("ICC Internal Error. ICC information requested while response waiting.\n");
@@ -487,7 +487,7 @@ void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
                     Icc_currentTransferLen = 0;
                     Icc_dmaState = ICC_DMA_ERROR;
                 } else {
-                    ICC_ICCCommandHandler(command, length);
+                    Icc_iccCommandHandler(command, length);
                 }
 
             }
@@ -525,35 +525,35 @@ void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
 /* handles the short ICC commands we can receive, which is most of them
  * returns true if data was added to the ICC out buffer
  * false if not (generally because the command was unrecognized) */
-bool ICC_ICCCommandHandler(uint8_t command, uint16_t len) {
+bool Icc_iccCommandHandler(uint8_t command, uint16_t len) {
     bool ret = false;
     switch(command) {
         case ICC_COMMAND_LIST_TARGETS:
-            ICC_PrepareTargetList(len);
+            Icc_prepareTargetList(len);
             break;
         case ICC_COMMAND_GET_MAXIMUMS:
-            ICC_PrepareTargetMaximumsList(len);
+            Icc_prepareTargetMaximumsList(len);
             break;
         case ICC_COMMAND_LAST_XFER_STATUS:
-            ICC_PrepareLastTransferInfo(command);
+            Icc_prepareLastTransferInfo(command);
             break;
         case ICC_COMMAND_SET_SHUTDOWN:
-            ICC_SetPowerMode(ICC_POWER_MODE_SHUTDOWN);
+            Icc_setPowerMode(ICC_POWER_MODE_SHUTDOWN);
             break;
         case ICC_COMMAND_SET_LOW_POWER:
-            ICC_SetPowerMode(ICC_POWER_MODE_LOW);
+            Icc_setPowerMode(ICC_POWER_MODE_LOW);
             break;
         case ICC_COMMAND_SET_FULL_POWER:
-            ICC_SetPowerMode(ICC_POWER_MODE_FULL);
+            Icc_setPowerMode(ICC_POWER_MODE_FULL);
             break;
         case ICC_COMMAND_GET_POWER_MODE:
-            ICC_PreparePowerMode();
+            Icc_preparePowerMode();
             break;
         case ICC_COMMAND_USB_DISABLE:
-            ICC_SetUSBEnabled(false);
+            Icc_setUSBEnabled(false);
             break;
         case ICC_COMMAND_USB_ENABLE:
-            ICC_SetUSBEnabled(true);
+            Icc_setUSBEnabled(true);
             break;
         default:
 #ifdef DEBUG_ICC
@@ -568,7 +568,7 @@ bool ICC_ICCCommandHandler(uint8_t command, uint16_t len) {
     return ret;
 }
 
-bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len) {
+bool Icc_iccExtendedCommandHandler(uint8_t* data, uint16_t len) {
     if((len == 0) || (data == NULL)) {
         uart_debug_sendline("ICC Extended Command Handler called with zero length or null data.\n");
         return false;
@@ -606,10 +606,10 @@ void Icc_deselectedCallbackHandler(void) {
     }
     Icc_currentTarget = NULL;
     Icc_currentTransferLen = 0;
-    ICC_SetupHeaderReceive();
+    Icc_setupHeaderReceive();
 }
 
-void ICC_SetPowerMode(uint8_t mode) {
+void Icc_setPowerMode(uint8_t mode) {
     switch(mode) {
         case ICC_POWER_MODE_FULL:
         case ICC_POWER_MODE_LOW:
@@ -626,17 +626,17 @@ void ICC_SetPowerMode(uint8_t mode) {
     }
 }
 
-void ICC_PreparePowerMode(void) {
+void Icc_preparePowerMode(void) {
     //@TODO actually do power modes
     static uint8_t powerMode = ICC_POWER_MODE_FULL;
-    ICC_Target_ICC.outBuffer = &powerMode;
-    ICC_Target_ICC.outBufferLen = 1;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = &powerMode;
+    Icc_targetIcc.outBufferLen = 1;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
-void ICC_PrepareLastTransferInfo(uint8_t targetNum) {
+void Icc_prepareLastTransferInfo(uint8_t targetNum) {
     static uint8_t lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_LEN];
-    Icc_tdTargetInfo* target = ICC_LookupTargetInfo(targetNum);
+    Icc_tdTargetInfo* target = Icc_lookupTargetInfo(targetNum);
     if(NULL != target) {
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_TARGET_POS] = target->lastTransferDirection | target->number;
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_VALID_POS] = true;
@@ -649,15 +649,15 @@ void ICC_PrepareLastTransferInfo(uint8_t targetNum) {
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_LENGTH_MSB_POS] = 0;
     }
 
-    ICC_Target_ICC.outBuffer = lastTransferInfoBuff;
-    ICC_Target_ICC.outBufferLen = ICC_LAST_TRANSFER_INFO_LEN;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = lastTransferInfoBuff;
+    Icc_targetIcc.outBufferLen = ICC_LAST_TRANSFER_INFO_LEN;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
 /*
  * length controls how many bytes are made available in the output
  */
-void ICC_PrepareTargetList(uint16_t len) {
+void Icc_prepareTargetList(uint16_t len) {
     uint8_t* targetInfoBuffer = Icc_targetInfoBuffer;
     if(len > ICC_TARGET_INFO_BUFFER_LENGTH) {
         len = ICC_TARGET_INFO_BUFFER_LENGTH; //limit length to prevent overruns
@@ -666,18 +666,18 @@ void ICC_PrepareTargetList(uint16_t len) {
     if(len > 1) { //short-circuited for len == 1 since that's how the secure micro can discover how many targets we have
         for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
             uint32_t baseOffset = (i * ICC_TARGET_LIST_ITEM_LENGTH) + 1;
-            targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = ICC_TargetInfoList[i]->number;
-            if(ICC_TargetInfoList[i]->inBufferState == ICC_BUFFER_STATE_READY) {
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = ICC_TargetInfoList[i]->inBufferLenMax & 0xFF;
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (ICC_TargetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
+            targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = Icc_targetInfoList[i]->number;
+            if(Icc_targetInfoList[i]->inBufferState == ICC_BUFFER_STATE_READY) {
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = Icc_targetInfoList[i]->inBufferLenMax & 0xFF;
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (Icc_targetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
             }  else {
                 //not ready, return 0 for potential length
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = 0;
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = 0;
             }
-            if(ICC_TargetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = ICC_TargetInfoList[i]->outBufferLen & 0xFF;
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (ICC_TargetInfoList[i]->outBufferLen & 0xFF00) >> 8;
+            if(Icc_targetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = Icc_targetInfoList[i]->outBufferLen & 0xFF;
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (Icc_targetInfoList[i]->outBufferLen & 0xFF00) >> 8;
             }  else {
                 //not ready, return 0 for potential length
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = 0;
@@ -685,16 +685,16 @@ void ICC_PrepareTargetList(uint16_t len) {
             }
         }
     }
-    ICC_Target_ICC.outBuffer = targetInfoBuffer;
-    ICC_Target_ICC.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = targetInfoBuffer;
+    Icc_targetIcc.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
 
 /*
  * length controls how many bytes are made available in the output
  */
-void ICC_PrepareTargetMaximumsList(uint16_t len) {
+void Icc_prepareTargetMaximumsList(uint16_t len) {
     uint8_t* targetInfoBuffer = Icc_targetInfoBuffer;
     if(len > ICC_TARGET_INFO_BUFFER_LENGTH) {
         len = ICC_TARGET_INFO_BUFFER_LENGTH; //limit length to prevent overruns
@@ -702,22 +702,22 @@ void ICC_PrepareTargetMaximumsList(uint16_t len) {
     targetInfoBuffer[0] = ICC_NUM_TARGETS;
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
         uint32_t baseOffset = (i * ICC_TARGET_LIST_ITEM_LENGTH) + 1;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = ICC_TargetInfoList[i]->number;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = Icc_targetInfoList[i]->number;
 
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = ICC_TargetInfoList[i]->inBufferLenMax & 0xFF;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (ICC_TargetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = Icc_targetInfoList[i]->inBufferLenMax & 0xFF;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (Icc_targetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
 
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = ICC_TargetInfoList[i]->outBufferLenMax & 0xFF;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (ICC_TargetInfoList[i]->outBufferLenMax & 0xFF00) >> 8;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = Icc_targetInfoList[i]->outBufferLenMax & 0xFF;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (Icc_targetInfoList[i]->outBufferLenMax & 0xFF00) >> 8;
 
     }
 
-    ICC_Target_ICC.outBuffer = targetInfoBuffer;
-    ICC_Target_ICC.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = targetInfoBuffer;
+    Icc_targetIcc.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
-void ICC_SetUSBEnabled(bool usbEnabled) {
+void Icc_setUSBEnabled(bool usbEnabled) {
     if(usbEnabled) {
 #ifdef DEBUG_ICC
     uart_debug_sendline("USB Enabled via ICC.\n");
@@ -733,10 +733,10 @@ void ICC_SetUSBEnabled(bool usbEnabled) {
 
 }
 
-void ICC_ICCTransmitCompleteCallback(void) {
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_IDLE;
-    ICC_Target_ICC.outBufferLen = 0;
-    ICC_Target_ICC.outBuffer = NULL;
+void Icc_iccTransmitCompleteCallback(void) {
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_IDLE;
+    Icc_targetIcc.outBufferLen = 0;
+    Icc_targetIcc.outBuffer = NULL;
 
 }
 
