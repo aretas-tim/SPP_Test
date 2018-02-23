@@ -130,11 +130,11 @@ uint8_t installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen,
 
     //if(encResult == 0) {
         //success
-        BACKUP_REGS_PackRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN  / 4);
+        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN  / 4);
         *BACKUP_REGS_OWNERSHIP_REG = OWNERSHIP_CTRL_IS_OWNED | (*BACKUP_REGS_OWNERSHIP_REG & ~OWNERSHIP_CTRL_OWNERSHIP);
-        BACKUP_REGS_PackRegs(BACKUP_REGS_PASSWORD_HASH_BASE, ownerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
-        BACKUP_REGS_PackRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, iv, OWNERSHIP_IV_LEN / 4);
-        BACKUP_REGS_PackRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
+        BackupRegs_packRegs(BACKUP_REGS_PASSWORD_HASH_BASE, ownerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
+        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, iv, OWNERSHIP_IV_LEN / 4);
+        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
     //}
     //return (encResult != 0);
     return true;
@@ -189,7 +189,7 @@ bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uin
     uint8_t* keyEncryptingKey = combinedData + OWNERSHIP_PIN_HASH_LEN;
     uint8_t* storedOwnerAuthentication = hashedPIN; //reuse pointer
 
-    BACKUP_REGS_ExtractRegs(BACKUP_REGS_PASSWORD_HASH_BASE, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
+    BackupRegs_extractRegs(BACKUP_REGS_PASSWORD_HASH_BASE, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
     bool match = compareDigests(ownerAuthentication, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN);
 #ifdef DEBUG_TIME_UNLOCK
     timer2MatchEnd = TIM2->CNT;
@@ -204,8 +204,8 @@ bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uin
         uint8_t iv[OWNERSHIP_IV_LEN];
         uint8_t encryptedStorageKey[OWNERSHIP_KEY_LEN];
 
-        BACKUP_REGS_ExtractRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
-        BACKUP_REGS_ExtractRegs(BACKUP_REGS_STORAGE_KEY_BASE, iv, OWNERSHIP_IV_LEN / 4);
+        BackupRegs_extractRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
+        BackupRegs_extractRegs(BACKUP_REGS_STORAGE_KEY_BASE, iv, OWNERSHIP_IV_LEN / 4);
 
         mbedtls_aes_context aesctx;
         mbedtls_aes_init(&aesctx);

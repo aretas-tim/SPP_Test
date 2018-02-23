@@ -35,13 +35,13 @@
 #define KEY_ENCRYPTING_KEY_LEN_BITS (KEY_ENCRYPTING_KEY_LEN * 8)
 #define AES_BLOCK_LEN 16
 
-void BACKUP_REGS_Clear(void); /* use carefully*/
-uint8_t BACKUP_REGS_Valid(void);
-void BACKUP_REGS_PackRegs(volatile uint32_t* baseReg, uint8_t* data, size_t numRegs);
-void BACKUP_REGS_ExtractRegs(volatile uint32_t* baseReg, uint8_t* dataOut, size_t numRegs);
+void BackupRegs_clear(void); /* use carefully*/
+uint8_t BackupRegs_isValid(void);
+void BackupRegs_packRegs(volatile uint32_t* baseReg, uint8_t* data, size_t numRegs);
+void BackupRegs_extractRegs(volatile uint32_t* baseReg, uint8_t* dataOut, size_t numRegs);
 
 #ifdef DEBUG
-void BACKUP_REGS_Dump(void);
+void BackupRegs_dump(void);
 #endif /*DEBUG*/
 
 
