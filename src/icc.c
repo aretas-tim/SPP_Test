@@ -22,42 +22,21 @@
 ICC_TargetInfo* ICC_CurrentTarget = NULL; /* pointer to the buffer that the DMA is currently using, direction depends on context */
 uint16_t ICC_CurrentTransferLen = 0; /* holds how many bytes we're expecting to transfer */
 ICC_DMAStateEnum ICC_DMAState = ICC_DMA_ERROR;
-
 ICC_TransferInfo ICC_LastTransferInfo = {.targetValid = false, .target = 0, .length = 0};
-
-volatile bool ICC_WaitForTransferCompleteCallback = false; //used to pause the deselected callback until the rx/tx complete callback has finished
-
-uint8_t ICC_HeaderInBuffer[ICC_HEADER_LENGTH]; /* header is always "in", though it proceeds no further than us */
-uint8_t ICC_CommandInBuffer[ICC_COMMAND_BUFFER_LENGTH];
-
-bool ICC_ICCCommandHandler(uint8_t command, uint16_t len); /* short commands */
-bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len);
-void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]);
-void ICC_ICCTransmitCompleteCallback(void);
-
-void ICC_AssertDataWaiting(void);
-bool ICC_CheckForDataWaiting(void);
-//there is no clear, check for data waiting will clear as-needed
-
-ICC_TargetInfo* ICC_LookupTargetInfo(uint8_t target);
-
-void ICC_PreparePowerMode(void);
-void ICC_PrepareLastTransferInfo(uint8_t target);
-void ICC_PrepareTargetList(uint16_t len);
-void ICC_PrepareTargetMaximumsList(uint16_t len);
-
-void ICC_SetPowerMode(uint8_t mode);
-
-void ICC_SetUSBEnabled(bool isUSBEnabled);
-
-
-
-
 uint8_t ICC_TargetInfoBuffer[ICC_TARGET_INFO_BUFFER_LENGTH]; //because its shared between two functions now, saves memory
 
+SPI_HandleTypeDef* ICC_SpiHandle = NULL;
+bool ICC_IsInitialized = false;
+/* these are multiplexed with the wakeup pin, as it has no function outside of deep sleep */
+GPIO_TypeDef* ICC_ReadyPort = NULL;
+uint16_t ICC_ReadyPin = 0; //no pin
+/* outgoing IRQ to secure micro, to let it know we have data waiting */
+GPIO_TypeDef* ICC_IRQPort = NULL;
+uint16_t ICC_IRQPin = 0; //no pin
 
-//bool ICC_EchoHandler(uint8_t* buff, uint16_t len);
-//void ICC_EchoTransmitCompleteCallback(void);
+volatile bool ICC_WaitForTransferCompleteCallback = false; //used to pause the deselected callback until the rx/tx complete callback has finished
+uint8_t ICC_HeaderInBuffer[ICC_HEADER_LENGTH]; /* header is always "in", though it proceeds no further than us */
+uint8_t ICC_CommandInBuffer[ICC_COMMAND_BUFFER_LENGTH];
 
 ICC_TargetInfo ICC_Target_ICC = {
         .number = ICC_TARGET_ICC,
@@ -138,6 +117,23 @@ ICC_TargetInfo ICC_Target_Hotkey = {
         .txCompleteCallback = NULL
 };
 
+
+bool ICC_ICCCommandHandler(uint8_t command, uint16_t len); /* short commands */
+bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len);
+void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]);
+void ICC_ICCTransmitCompleteCallback(void);
+void ICC_AssertDataWaiting(void);
+bool ICC_CheckForDataWaiting(void);
+//there is no clear, check for data waiting will clear as-needed
+ICC_TargetInfo* ICC_LookupTargetInfo(uint8_t target);
+void ICC_PreparePowerMode(void);
+void ICC_PrepareLastTransferInfo(uint8_t target);
+void ICC_PrepareTargetList(uint16_t len);
+void ICC_PrepareTargetMaximumsList(uint16_t len);
+void ICC_SetPowerMode(uint8_t mode);
+void ICC_SetUSBEnabled(bool isUSBEnabled);
+HAL_StatusTypeDef ICC_SetupHeaderReceive(void);
+
 ICC_TargetInfo* ICC_TargetInfoList[ICC_NUM_TARGETS] = {
         &ICC_Target_ICC,
         &ICC_Target_LEDs,
@@ -147,20 +143,6 @@ ICC_TargetInfo* ICC_TargetInfoList[ICC_NUM_TARGETS] = {
 };
 
 
-SPI_HandleTypeDef* ICC_SpiHandle = NULL;
-
-bool ICC_IsInitialized = false;
-
-/* these are multiplexed with the wakeup pin, as it has no function outside of deep sleep */
-GPIO_TypeDef* ICC_ReadyPort = NULL;
-uint16_t ICC_ReadyPin = 0; //no pin
-
-/* outgoing IRQ to secure micro, to let it know we have data waiting */
-GPIO_TypeDef* ICC_IRQPort = NULL;
-uint16_t ICC_IRQPin = 0; //no pin
-
-
-HAL_StatusTypeDef ICC_SetupHeaderReceive(void);
 
 void ICC_Init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPin, GPIO_TypeDef* IRQPort, uint16_t IRQPin) {
     //do init things where once we know what needs to be initialized
