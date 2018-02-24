@@ -78,26 +78,26 @@ void Init_systemClockConfig(void){
 }
 
 
-void Init_timer2init(void) {
+void Init_timer2init(TIM_HandleTypeDef* htim2) {
     __TIM2_CLK_ENABLE();
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
 
-    htim2.Instance = TIM2;
-    htim2.Init.Prescaler = 0;
-    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 0;
-    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    htim2.Init.RepetitionCounter = 0;
-    HAL_TIM_Base_Init(&htim2);
+    htim2->Instance = TIM2;
+    htim2->Init.Prescaler = 0;
+    htim2->Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim2->Init.Period = 0;
+    htim2->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim2->Init.RepetitionCounter = 0;
+    HAL_TIM_Base_Init(htim2);
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig);
+    HAL_TIM_ConfigClockSource(htim2, &sClockSourceConfig);
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
     sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig);
+    HAL_TIMEx_MasterConfigSynchronization(htim2, &sMasterConfig);
 
     TIM2->CNT = 0x0;
     TIM2->PSC = 0x1;
@@ -173,14 +173,14 @@ void Init_timer17init(void) {
 }
 
 /* init function for the debug UART (USART2 on devboard, USART1 on device)*/
-void Init_debugUartInit(void) {
+void Init_debugUartInit(UART_HandleTypeDef* huart_debug ) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
     /** DEVBOARD ICC disabled*/
     __UART4_CLK_ENABLE();
 
-    huart_debug.Instance = UART4;
+    huart_debug->Instance = UART4;
 
     GPIO_InitStruct.Pin = GPIO_PIN_0;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -194,16 +194,16 @@ void Init_debugUartInit(void) {
 
 
 #endif
-    huart_debug.Init.BaudRate = 230400;
-    huart_debug.Init.WordLength = UART_WORDLENGTH_8B;
-    huart_debug.Init.StopBits = UART_STOPBITS_1;
-    huart_debug.Init.Parity = UART_PARITY_NONE;
-    huart_debug.Init.Mode = UART_MODE_TX; //TX only
-    huart_debug.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart_debug.Init.OverSampling = UART_OVERSAMPLING_16;
-    huart_debug.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED;
-    huart_debug.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-    HAL_UART_Init(&huart_debug);
+    huart_debug->Init.BaudRate = 230400;
+    huart_debug->Init.WordLength = UART_WORDLENGTH_8B;
+    huart_debug->Init.StopBits = UART_STOPBITS_1;
+    huart_debug->Init.Parity = UART_PARITY_NONE;
+    huart_debug->Init.Mode = UART_MODE_TX; //TX only
+    huart_debug->Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart_debug->Init.OverSampling = UART_OVERSAMPLING_16;
+    huart_debug->Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED;
+    huart_debug->AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+    HAL_UART_Init(huart_debug);
 #ifdef DEVICE_0_A_0_1
     huart_debug.Instance->BRR = 1388; //@TODO figure out why this sucks and i have to hard-code the BRR.
 #endif
@@ -333,13 +333,13 @@ void Init_gpioInit(void) {
 #endif /* DEVICE_0_A_1_1_U */
 }
 
-void Init_spiMsInit(void) {
+void Init_spiMsInit(SPI_HandleTypeDef* hspi_ms) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
     __SPI1_CLK_ENABLE();
 
-    hspi_ms.Instance = SPI1;
+    hspi_ms->Instance = SPI1;
 
     GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -354,28 +354,28 @@ void Init_spiMsInit(void) {
 
 
 #endif /* DEVICE_0_A_1_1_U */
-    hspi_ms.Init.Mode = SPI_MODE_MASTER;
-    hspi_ms.Init.Direction = SPI_DIRECTION_2LINES;
-    hspi_ms.Init.DataSize = SPI_DATASIZE_8BIT;
-    hspi_ms.Init.CLKPolarity = SPI_POLARITY_LOW;
-    hspi_ms.Init.CLKPhase = SPI_PHASE_1EDGE;
-    hspi_ms.Init.NSS = SPI_NSS_SOFT;
-    hspi_ms.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8; /* ~10MHz.*/
-    hspi_ms.Init.FirstBit = SPI_FIRSTBIT_MSB;
-    hspi_ms.Init.TIMode = SPI_TIMODE_DISABLED;
-    hspi_ms.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
-    hspi_ms.Init.NSSPMode = SPI_NSS_PULSE_DISABLED;
+    hspi_ms->Init.Mode = SPI_MODE_MASTER;
+    hspi_ms->Init.Direction = SPI_DIRECTION_2LINES;
+    hspi_ms->Init.DataSize = SPI_DATASIZE_8BIT;
+    hspi_ms->Init.CLKPolarity = SPI_POLARITY_LOW;
+    hspi_ms->Init.CLKPhase = SPI_PHASE_1EDGE;
+    hspi_ms->Init.NSS = SPI_NSS_SOFT;
+    hspi_ms->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8; /* ~10MHz.*/
+    hspi_ms->Init.FirstBit = SPI_FIRSTBIT_MSB;
+    hspi_ms->Init.TIMode = SPI_TIMODE_DISABLED;
+    hspi_ms->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
+    hspi_ms->Init.NSSPMode = SPI_NSS_PULSE_DISABLED;
 
-    HAL_SPI_Init(&hspi_ms);
+    HAL_SPI_Init(hspi_ms);
 }
 
-void Init_spiIccInit(void) {
+void Init_spiIccInit(SPI_HandleTypeDef* hspi_icc, DMA_HandleTypeDef* hdma_icc_rx, DMA_HandleTypeDef* hdma_icc_tx) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
 #ifdef DEVICE_0_A_1_1_U
     __SPI3_CLK_ENABLE();
 
-    hspi_icc.Instance = SPI3;
+    hspi_icc->Instance = SPI3;
 
     GPIO_InitStruct.Pin = GPIO_PIN_15; //select, change back to PA15 for non-devboard stuff @TODO
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -409,46 +409,46 @@ void Init_spiIccInit(void) {
 
 #endif /* DEVICE_0_A_1_1_U */
 
-    hspi_icc.Init.Mode = SPI_MODE_SLAVE;
-    hspi_icc.Init.Direction = SPI_DIRECTION_2LINES;
-    hspi_icc.Init.DataSize = SPI_DATASIZE_8BIT;
-    hspi_icc.Init.CLKPolarity = SPI_POLARITY_LOW;
-    hspi_icc.Init.CLKPhase = SPI_PHASE_1EDGE;
-    hspi_icc.Init.NSS = SPI_NSS_HARD_INPUT;
-    hspi_icc.Init.FirstBit = SPI_FIRSTBIT_MSB;
-    hspi_icc.Init.TIMode = SPI_TIMODE_DISABLED;
-    hspi_icc.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
-    hspi_icc.Init.NSSPMode = SPI_NSS_PULSE_DISABLED;
+    hspi_icc->Init.Mode = SPI_MODE_SLAVE;
+    hspi_icc->Init.Direction = SPI_DIRECTION_2LINES;
+    hspi_icc->Init.DataSize = SPI_DATASIZE_8BIT;
+    hspi_icc->Init.CLKPolarity = SPI_POLARITY_LOW;
+    hspi_icc->Init.CLKPhase = SPI_PHASE_1EDGE;
+    hspi_icc->Init.NSS = SPI_NSS_HARD_INPUT;
+    hspi_icc->Init.FirstBit = SPI_FIRSTBIT_MSB;
+    hspi_icc->Init.TIMode = SPI_TIMODE_DISABLED;
+    hspi_icc->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
+    hspi_icc->Init.NSSPMode = SPI_NSS_PULSE_DISABLED;
 
-    HAL_SPI_Init(&hspi_icc); //init SPI
+    HAL_SPI_Init(hspi_icc); //init SPI
 
-    hdma_icc_rx.Instance = DMA2_Channel1;
-    hdma_icc_rx.Init.Request = DMA_REQUEST_3;
-    hdma_icc_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_icc_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_icc_rx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_icc_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_icc_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_icc_rx.Init.Mode = DMA_NORMAL;
-    hdma_icc_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-    HAL_DMA_Init(&hdma_icc_rx); //init DMA
+    hdma_icc_rx->Instance = DMA2_Channel1;
+    hdma_icc_rx->Init.Request = DMA_REQUEST_3;
+    hdma_icc_rx->Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_icc_rx->Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_icc_rx->Init.MemInc = DMA_MINC_ENABLE;
+    hdma_icc_rx->Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_icc_rx->Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_icc_rx->Init.Mode = DMA_NORMAL;
+    hdma_icc_rx->Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    HAL_DMA_Init(hdma_icc_rx); //init DMA
 
-    hspi_icc.hdmarx = &hdma_icc_rx; //link DMA to SPI
-    hdma_icc_rx.Parent = &hspi_icc; //link SPI to DMA
+    hspi_icc->hdmarx = hdma_icc_rx; //link DMA to SPI
+    hdma_icc_rx->Parent = hspi_icc; //link SPI to DMA
 
-    hdma_icc_tx.Instance = DMA2_Channel2;
-    hdma_icc_tx.Init.Request = DMA_REQUEST_3;
-    hdma_icc_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    hdma_icc_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_icc_tx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_icc_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_icc_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_icc_tx.Init.Mode = DMA_NORMAL;
-    hdma_icc_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-    HAL_DMA_Init(&hdma_icc_tx); //init DMA
+    hdma_icc_tx->Instance = DMA2_Channel2;
+    hdma_icc_tx->Init.Request = DMA_REQUEST_3;
+    hdma_icc_tx->Init.Direction = DMA_MEMORY_TO_PERIPH;
+    hdma_icc_tx->Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_icc_tx->Init.MemInc = DMA_MINC_ENABLE;
+    hdma_icc_tx->Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_icc_tx->Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_icc_tx->Init.Mode = DMA_NORMAL;
+    hdma_icc_tx->Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    HAL_DMA_Init(hdma_icc_tx); //init DMA
 
-    hspi_icc.hdmatx = &hdma_icc_tx; //link DMA to SPI
-    hdma_icc_tx.Parent = &hspi_icc; //link SPI to DMA
+    hspi_icc->hdmatx = hdma_icc_tx; //link DMA to SPI
+    hdma_icc_tx->Parent = hspi_icc; //link SPI to DMA
 }
 
 //handles basic DMA init, make sure this is called before the DMAs are further set up

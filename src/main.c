@@ -59,6 +59,8 @@
 #include "usbd_tunnel_hid_if.h"
 #include "usbd_hotkey_hid_if.h"
 #include "icc.h"
+#include "init.h"
+
 
 typedef enum {
     PHASE_IDLE,
@@ -100,19 +102,7 @@ volatile uint8_t secondTicksUpdated = false;
 bool testAddEntryFlag = false;
 
 /* Private function prototypes -----------------------------------------------*/
-void Init_systemClockConfig(void);
-static void Init_gpioInit(void);
-static void Init_debugUartInit(void);
-void Init_spiMsInit(void);
-void Init_spiIccInit(void);
-void Init_dmaInit(void);
-void Init_timer2init(void); //timer2 is going to run at full CPU speed and can be used to time things with high precision
-void Init_timer7init(void);
-void Init_timer3init(void);
-void Init_timer17init(void); //secondTicks
-void memDump(uint8_t* start, size_t end);
-void testFunc(uint32_t ignored);
-void testKBCallback(void);
+
 uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight);
 //test stuff
 void testCallback(void);
@@ -146,13 +136,10 @@ int main(void)
 
   /* Configure the system clock to 80 MHz */
   Init_systemClockConfig();
-  //__HAL_RCC_RTC_ENABLE(); //no RTC, handled on secure micro. we don't care about this so-called 'real' time
-  //RTC_Init();
-  //WWDG->CR = 0x0;
   Init_dmaInit(); //do this first
   Init_gpioInit();
   MX_USB_DEVICE_Init();
-  Init_debugUartInit();
+  Init_debugUartInit(&huart_debug);
   Init_timer3init();
   Init_timer7init();
   Init_timer17init();
@@ -160,8 +147,8 @@ int main(void)
   //ScanI2C();
   LED_Init(&hi2c, GPIOB, GPIO_PIN_4);
   LED_SetLEDs(true);
-  //Init_spiMsInit(); //@TODO reenable this
-  Init_spiIccInit();
+  //Init_spiMsInit(&hspi_ms); //@TODO reenable this
+  Init_spiIccInit(&hspi_icc, &hdma_icc_rx, &hdma_icc_tx);
 
   UART_Debug_Init(&huart_debug);
 
