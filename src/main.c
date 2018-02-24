@@ -144,7 +144,7 @@ int main(void)
   Init_timer7init();
   Init_timer17init();
 
-  //ScanI2C();
+
   LED_Init(&hi2c, GPIOB, GPIO_PIN_4);
   LED_SetLEDs(true);
   //Init_spiMsInit(&hspi_ms); //@TODO reenable this
@@ -163,31 +163,22 @@ int main(void)
   SPI_FLASH_SetHold(false);
   SPI_FLASH_Reset();
 
-  //Icc_init(&hspi_icc, GPIOA, GPIO_PIN_1, GPIOA, GPIO_PIN_0); //devboard
   Icc_init(&hspi_icc, GPIOC, GPIO_PIN_13, GPIOD, GPIO_PIN_2);
   Icc_start();
-
   HAL_Delay(10); //will force systick to fire
-
-
   uart_debug_sendline("USB Micro Started!\r\n");
 
 
-
-
-
-
-  while (1)
+while (1)
   {
 
-    uint8_t commandReceived = 0; //= getCommand(&tunnel, &commandInFlight);
+    uint8_t commandReceived = 0;
     if(commandReceived) {
-        //commandRunner(&commandInFlight);
-        //HAL_Delay(100);
+
     }
 
     if(U2F_HID_IsMessageWaiting()) {
-        //U2F_HandleHIDMessage(); //if there's a U2F message waiting over USB HID, handle it
+
     }
 
     if(secondTicksUpdated) {
@@ -376,7 +367,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 
 void HAL_SYSTICK_Callback(void) {
     ticks++;
-    //KEYPAD_Scan();
     ledCallback();
 }
 
