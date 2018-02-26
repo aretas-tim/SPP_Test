@@ -44,8 +44,8 @@
 #define STORAGE_BLK_NBR                  0x1000
 #define STORAGE_BLK_SIZ                  0x1000
 
-void (*STORAGE_ChipSelect)(void) = &SPI_FLASH_SelectChip1;
-void (*STORAGE_ChipDeselect)(void) = &SPI_FLASH_SelectNone;
+void (*STORAGE_ChipSelect)(void) = &SpiFlash_selectChip1;
+void (*STORAGE_ChipDeselect)(void) = &SpiFlash_selectNone;
 extern SPI_HandleTypeDef hspi_ms;
 
 int8_t STORAGE_Init (uint8_t lun);
@@ -173,7 +173,7 @@ int8_t STORAGE_Read (uint8_t lun,
     uart_debug_addToBuffer(")\n", 2);*/
     uint16_t readLen = blk_len * STORAGE_BLK_SIZ;
     STORAGE_ChipSelect();
-    uint16_t rv = SPI_FLASH_ReadData(&hspi_ms, buf, readLen, blk_addr << 12);
+    uint16_t rv = SpiFlash_readData(&hspi_ms, buf, readLen, blk_addr << 12);
     STORAGE_ChipDeselect();
     if(rv == readLen) {
         return 0;
@@ -203,21 +203,21 @@ int8_t STORAGE_Write (uint8_t lun,
     uart_debug_addToBuffer(")\n", 2);*/
     STORAGE_ChipSelect();
     for(uint16_t i = 0; i < blk_len; ++i) {
-        uint8_t rv = SPI_FLASH_WriteEnableAndWait(&hspi_ms, 100);
+        uint8_t rv = SpiFlash_writeEnableAndWait(&hspi_ms, 100);
         if(!rv) {
             uart_debug_sendline("Error enabling write for erase.\n");
             STORAGE_ChipDeselect();
             return rv;
         }
-        rv =  SPI_FLASH_EraseSector(&hspi_ms, (blk_addr + i) << 12);
+        rv =  SpiFlash_eraseSector(&hspi_ms, (blk_addr + i) << 12);
         if(rv) {
             uart_debug_sendline("Error erasing sector.\n");
             STORAGE_ChipDeselect();
             return rv;
         }
-        SPI_FLASH_ReadSR1UntilNotBusy(&hspi_ms); //wait for erase to complete
+        SpiFlash_readSR1UntilNotBusy(&hspi_ms); //wait for erase to complete
     }
-    uint32_t write_rv = SPI_FLASH_Write(&hspi_ms, buf, blk_len * STORAGE_BLK_SIZ, blk_addr << 12);
+    uint32_t write_rv = SpiFlash_write(&hspi_ms, buf, blk_len * STORAGE_BLK_SIZ, blk_addr << 12);
     STORAGE_ChipDeselect();
     if(write_rv) {
         return 1;

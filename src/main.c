@@ -159,9 +159,9 @@ int main(void)
 
   /*actual stuff starts here*/
 
-  SPI_FLASH_SelectNone();
-  SPI_FLASH_SetHold(false);
-  SPI_FLASH_Reset();
+  SpiFlash_selectNone();
+  SpiFlash_setHold(false);
+  SpiFlash_reset();
 
   Icc_init(&hspi_icc, GPIOC, GPIO_PIN_13, GPIOD, GPIO_PIN_2);
   Icc_start();
@@ -381,7 +381,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef* hspicb) {
     if(hspicb == &hspi_ms) {
-        SPI_FLASH_IT_RxComplete(&hspi_ms);
+        SpiFlash_interruptRxComplete(&hspi_ms);
     } else if (hspicb == &hspi_icc) {
         Icc_dmaRxCompleteCallback();
     }
