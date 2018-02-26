@@ -94,12 +94,10 @@ uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_
     mbedtls_md_context_t ctx;
     mbedtls_md_init(&ctx);
     mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), true);
-    //TIM2->CNT = 0x0; //reinitialize timer2
-    //TIM2->CR1 |= 0x0001; //start timer 2
     //hash the PIN once. this was required at one point to avoid a timing bug
     mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), pin, pinLen, hashedPIN);
     mbedtls_pkcs5_pbkdf2_hmac(&ctx, hashedPIN, PIN_HASH_LEN, salt, saltLen, *BACKUP_REGS_UNLOCK_ITERS_REG, combinedDataLen, combinedData);
-    //TIM2->CR1 &= ~(0x0001); //stop timer 2
+
 
     uart_debug_hexdump(combinedData, combinedDataLen);
     uart_debug_newline();
@@ -118,25 +116,21 @@ uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_
     getRandomBuff(NULL, iv, OWNERSHIP_IV_LEN); //random IV
 
 
-
     mbedtls_aes_context aesctx;
     mbedtls_aes_init(&aesctx);
     mbedtls_aes_setkey_enc(&aesctx, keyEncryptingKey, OWNERSHIP_KEY_LEN * 8);
 
 
-    //int encResult =
     mbedtls_aes_crypt_cbc(&aesctx, MBEDTLS_AES_ENCRYPT, OWNERSHIP_KEY_LEN, iv, storageKey, encryptedStorageKey);
     mbedtls_aes_free(&aesctx);
 
-    //if(encResult == 0) {
-        //success
-        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN  / 4);
-        *BACKUP_REGS_OWNERSHIP_REG = OWNERSHIP_CTRL_IS_OWNED | (*BACKUP_REGS_OWNERSHIP_REG & ~OWNERSHIP_CTRL_OWNERSHIP);
-        BackupRegs_packRegs(BACKUP_REGS_PASSWORD_HASH_BASE, ownerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
-        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, iv, OWNERSHIP_IV_LEN / 4);
-        BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
-    //}
-    //return (encResult != 0);
+
+    BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN  / 4);
+    *BACKUP_REGS_OWNERSHIP_REG = OWNERSHIP_CTRL_IS_OWNED | (*BACKUP_REGS_OWNERSHIP_REG & ~OWNERSHIP_CTRL_OWNERSHIP);
+    BackupRegs_packRegs(BACKUP_REGS_PASSWORD_HASH_BASE, ownerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
+    BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_IV_BASE, iv, OWNERSHIP_IV_LEN / 4);
+    BackupRegs_packRegs(BACKUP_REGS_STORAGE_KEY_BASE, encryptedStorageKey, OWNERSHIP_KEY_LEN / 4);
+
     return true;
 }
 
@@ -169,15 +163,14 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
     mbedtls_md_context_t ctx;
     mbedtls_md_init(&ctx);
     mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), true);
-    //TIM2->CNT = 0x0; //reinitialize timer2
-    //TIM2->CR1 |= 0x0001; //start timer 2
+
 #ifdef DEBUG_TIME_UNLOCK
     timer2KDFStart = TIM2->CNT;
 #endif /* DEBUG_TIME_UNLOCK */
     //hash the PIN once. this was required at one point to avoid a timing bug
     mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), pin, pinLen, hashedPIN);
     mbedtls_pkcs5_pbkdf2_hmac(&ctx, hashedPIN, PIN_HASH_LEN, salt, saltLen, *BACKUP_REGS_UNLOCK_ITERS_REG, combinedDataLen, combinedData);
-    //TIM2->CR1 &= ~(0x0001); //stop timer 2
+
 #ifdef DEBUG_TIME_UNLOCK
     timer2KDFEnd = TIM2->CNT;
 #endif /* DEBUG_TIME_UNLOCK */
@@ -211,7 +204,7 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
         mbedtls_aes_init(&aesctx);
         mbedtls_aes_setkey_enc(&aesctx, keyEncryptingKey, OWNERSHIP_KEY_LEN * 8);
 
-        //int decResult =
+
         mbedtls_aes_crypt_cbc(&aesctx, MBEDTLS_AES_DECRYPT, OWNERSHIP_KEY_LEN, iv, encryptedStorageKey, storageKey);
     } else {
         Ownership_increaseAttackMitigation();
@@ -253,9 +246,6 @@ bool Ownership_clearOwner(void) {
     } while(regPtr <= (&RTC->BKP31R));
     return true;
 }
-
-
-
 
 
 
