@@ -12,7 +12,19 @@ uint16_t SpiFlash_currentPin = 0;
 volatile bool SpiFlash_interruptRxCompleteFlag = false; /* set to true by the receive complete callback in interrupt mode, which will let the receive function proceed */
 uint8_t SpiFlash_pageBuff[SPI_FLASH_PAGE_LEN];
 
-bool SpiFlash_readSR1UntilNotBusy(SPI_HandleTypeDef* hspi);
+
+
+static void SpiFlash_select(void);
+static void SpiFlash_deselect(void);
+static uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef*, uint8_t*, uint16_t, uint32_t);
+static uint16_t SpiFlash_pageProgram(SPI_HandleTypeDef*, uint8_t*, uint16_t, uint32_t);
+static bool SpiFlash_readSR1UntilWriteEnabled(SPI_HandleTypeDef*);
+static uint8_t SpiFlash_writeEnable(SPI_HandleTypeDef*);
+
+
+
+
+
 
 void SpiFlash_select(void) {
     if(SpiFlash_currentPort != NULL) {

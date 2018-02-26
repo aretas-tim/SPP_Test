@@ -132,18 +132,15 @@ size_t SpiFlash_getUniqueID(SPI_HandleTypeDef* hspi, uint8_t* buff, size_t buffL
 uint8_t SpiFlash_readSFDP(SPI_HandleTypeDef* hspi, uint8_t* data, size_t maxLen, size_t offset);
 uint16_t SpiFlash_fastRead(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress);
 uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress);
-uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress);
-uint8_t SpiFlash_writeEnable(SPI_HandleTypeDef* hspi);
 uint8_t SpiFlash_writeEnableAndWait(SPI_HandleTypeDef* hspi, uint32_t timeout);
 void SpiFlash_spinUntilNotBusy(SPI_HandleTypeDef* hspi);
 bool SpiFlash_readSR1UntilNotBusy(SPI_HandleTypeDef* hspi);
-uint16_t SpiFlash_pageProgram(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint16_t len, uint32_t startAddress);
 uint8_t SpiFlash_eraseSector(SPI_HandleTypeDef* hspi, uint32_t sector);
 bool SpiFlash_eraseChip(SPI_HandleTypeDef* hspi);
 uint32_t SpiFlash_write(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint32_t len, uint32_t startAddress);
 void SpiFlash_hexDumpFlash(SPI_HandleTypeDef* hspi, uint32_t start, uint32_t len);
 void SpiFlash_hexDumpFlashInterrupt(SPI_HandleTypeDef* hspi, uint32_t start, uint32_t len);
 void SpiFlash_interruptRxComplete(SPI_HandleTypeDef* hspi);
-
+bool SpiFlash_readSR1UntilNotBusy(SPI_HandleTypeDef* hspi);
 
 #endif /* SPI_FLASH_H */
