@@ -254,7 +254,7 @@ bool Ownership_clearOwner(void) {
  */
 bool Ownership_checkAttackMitigation(void) {
     uint32_t lockoutUntilTime = *BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME;
-    uint32_t currentTime = getSecondsSinceEpoch();
+    uint32_t currentTime = Rtc_getSecondsSinceEpoch();
     //check the lockout time to see if its in to the next century
     if(lockoutUntilTime >= SECONDS_PER_CENTURY) {
         //check if our current time is not
@@ -299,7 +299,7 @@ void Ownership_increaseAttackMitigation(void) {
             activeCount = AM_ACTIVE_COUNT_MAX;
         }
         lockoutSeconds <<= activeCount;
-        uint32_t epoch = getSecondsSinceEpoch();
+        uint32_t epoch = Rtc_getSecondsSinceEpoch();
         *BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME = epoch + lockoutSeconds;
         if(*BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME < epoch) { //check for overflow
             *BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME = -1; //set to max
