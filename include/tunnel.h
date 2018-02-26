@@ -8,14 +8,14 @@
 #ifndef TUNNEL_H_
 #define TUNNEL_H_
 
-#include "tpm_utils.h"
-//#include "tpm_nonce.h" /*getRandomBuff*/
+#include "utilities.h"
+//#include "tpm_nonce.h" /*Utilities_getRandomBuff*/
 #include "md.h"
 #include "sha256.h"
 #include "sha512.h"
 #include "aes.h"
 #include "pkcs5.h" /* pbkdf2*/
-//#include "tpm_authsession.h" /* TPM_AES_CTR_Crypt*/
+//#include "tpm_authsession.h" /* Utilities_tpmAesCtrCrypt*/
 #include "authdata_store.h"
 //#include "tpm_structures.h"
 //#include "tpm_i2c.h"

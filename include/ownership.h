@@ -10,7 +10,7 @@
 
 #include "backup_regs.h"
 #include "uart_debug.h"
-#include "tpm_utils.h"
+#include "utilities.h"
 #include <stdbool.h>
 
 #define OWNERSHIP_CTRL_OWNERSHIP    0x0000000F

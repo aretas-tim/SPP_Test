@@ -112,8 +112,8 @@ uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_
     uint8_t iv[OWNERSHIP_IV_LEN];
     uint8_t encryptedStorageKey[OWNERSHIP_KEY_LEN];
 
-    getRandomBuff(NULL, storageKey, OWNERSHIP_KEY_LEN); //random storage key
-    getRandomBuff(NULL, iv, OWNERSHIP_IV_LEN); //random IV
+    Utilities_getRandomBuff(NULL, storageKey, OWNERSHIP_KEY_LEN); //random storage key
+    Utilities_getRandomBuff(NULL, iv, OWNERSHIP_IV_LEN); //random IV
 
 
     mbedtls_aes_context aesctx;
@@ -183,7 +183,7 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
     uint8_t* storedOwnerAuthentication = hashedPIN; //reuse pointer
 
     BackupRegs_extractRegs(BACKUP_REGS_PASSWORD_HASH_BASE, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN / 4);
-    bool match = compareDigests(ownerAuthentication, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN);
+    bool match = Utilities_compareDigests(ownerAuthentication, storedOwnerAuthentication, OWNERSHIP_PIN_HASH_LEN);
 #ifdef DEBUG_TIME_UNLOCK
     timer2MatchEnd = TIM2->CNT;
 #endif /* DEBUG_TIME_UNLOCK */

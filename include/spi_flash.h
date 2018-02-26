@@ -8,7 +8,7 @@
 #include <string.h> /* memset*/
 #include <stdbool.h>
 #include "pat-config.h"
-#include "utilities.h" /* packToBuffer32 */
+#include "utilities.h" /* Utilities_packToBuffer32 */
 #include "sram2.h"
 
 #ifdef DEVBOARD

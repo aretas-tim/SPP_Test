@@ -184,7 +184,7 @@ uint8_t SpiFlash_readStatusRegisterInterrupt(SPI_HandleTypeDef* hspi, uint8_t st
 uint16_t SpiFlash_fastRead(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress) {
     size_t cmdLen = SPI_FLASH_CMDLEN_FAST_READ; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
-    packToBuffer32(cmdOutBuff, 0, startAddress);
+    Utilities_packToBuffer32(cmdOutBuff, 0, startAddress);
     cmdOutBuff[0] = SPI_FLASH_CMD_FAST_READ;
     SpiFlash_select();
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, cmdOutBuff, cmdLen, 1000); //send command, address and dummy byte
@@ -211,7 +211,7 @@ uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t le
 
     size_t cmdLen = SPI_FLASH_CMDLEN_READ_DATA; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
-    packToBuffer32(cmdOutBuff, 0, startAddress);
+    Utilities_packToBuffer32(cmdOutBuff, 0, startAddress);
     cmdOutBuff[0] = SPI_FLASH_CMD_READ_DATA;
     SpiFlash_select();
     HAL_SPIEx_FlushRxFifo(hspi);
@@ -249,7 +249,7 @@ uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t le
 uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress) {
     size_t cmdLen = SPI_FLASH_CMDLEN_READ_DATA; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
-    packToBuffer32(cmdOutBuff, 0, startAddress);
+    Utilities_packToBuffer32(cmdOutBuff, 0, startAddress);
     cmdOutBuff[0] = SPI_FLASH_CMD_READ_DATA;
     SpiFlash_select();
     HAL_SPIEx_FlushRxFifo(hspi);
@@ -286,7 +286,7 @@ uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef* hspi, uint8_t* inBuff, ui
 uint16_t SpiFlash_pageProgram(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint16_t len, uint32_t startAddress) {
     size_t cmdLen = SPI_FLASH_CMDLEN_PAGE_PROGRAM; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
-    packToBuffer32(cmdOutBuff, 0, startAddress);
+    Utilities_packToBuffer32(cmdOutBuff, 0, startAddress);
     cmdOutBuff[0] = SPI_FLASH_CMD_PAGE_PROGRAM;
     SpiFlash_select();
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, cmdOutBuff, cmdLen, 1000); //send command and address
@@ -496,7 +496,7 @@ uint8_t SpiFlash_writeEnable(SPI_HandleTypeDef* hspi) {
 uint8_t SpiFlash_eraseSector(SPI_HandleTypeDef* hspi, uint32_t sector) {
     size_t cmdLen = SPI_FLASH_CMDLEN_SECTOR_ERASE; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
-    packToBuffer32(cmdOutBuff, 0, (sector & SPI_FLASH_SECTOR_MASK));
+    Utilities_packToBuffer32(cmdOutBuff, 0, (sector & SPI_FLASH_SECTOR_MASK));
     cmdOutBuff[0] = SPI_FLASH_CMD_SECTOR_ERASE;
     SpiFlash_select();
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, cmdOutBuff, cmdLen, 1000); //send command and address

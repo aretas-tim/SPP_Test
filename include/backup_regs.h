@@ -12,7 +12,7 @@
 #include "uart_debug.h"
 #include "authdata_store.h"
 #include "aes.h"
-#include "tpm_utils.h"
+#include "utilities.h"
 #include <stdbool.h>
 
 

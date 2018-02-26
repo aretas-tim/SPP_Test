@@ -250,7 +250,7 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
             if((bytesAvailable + bytesRead) >= TUNNEL_HEADER_LEN) {
                 bytesRead += receiveDataFunc(commandReceiveBuffer + bytesRead, TUNNEL_HEADER_LEN - bytesRead); //read out our header
                 if(bytesRead >= TUNNEL_HEADER_LEN) {
-                    cmdLen = extract32(commandReceiveBuffer, TUNNEL_POS_LEN);
+                    cmdLen = Utilities_extract32(commandReceiveBuffer, TUNNEL_POS_LEN);
 #ifdef DEBUG
                     uart_debug_sendline("Tunnel Incoming Header Dump:\n");
                     uart_debug_hexdump(commandReceiveBuffer, TUNNEL_HEADER_LEN);
@@ -274,7 +274,7 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                 //we can read in the whole command
                 TUNNEL_BufferInit(commandInFlight); //initialize (or re-initialize) the buffer context to handle the new command
 
-                commandInFlight->tag = extract16(commandReceiveBuffer, TUNNEL_POS_TAG);
+                commandInFlight->tag = Utilities_extract16(commandReceiveBuffer, TUNNEL_POS_TAG);
                 if(TUNNEL_TAG_CMD_CLEAR == commandInFlight->tag) {
                     commandInFlight->hasAuth = false;
                 } else if (TUNNEL_TAG_CMD_ENC == commandInFlight->tag) {
@@ -307,7 +307,7 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                     //run the HMAC
                     mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), tunnel->sessionKey, TUNNEL_SESSION_KEY_LENGTH, hmacBuff, (TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH * 2), hmacResultBuff);
                     //check local hmac vs incoming hmac
-                    uint8_t authPassed = compareDigests(hmacResultBuff, commandInFlight->params + (parameterLen- TUNNEL_HMAC_LENGTH), TUNNEL_HMAC_LENGTH);
+                    uint8_t authPassed = Utilities_compareDigests(hmacResultBuff, commandInFlight->params + (parameterLen- TUNNEL_HMAC_LENGTH), TUNNEL_HMAC_LENGTH);
                     if(authPassed) {
                         uart_debug_sendline("Tunnel Command Authorization Passed.\n");
                         memcpy(tunnel->nonceOdd, commandInFlight->params + (parameterLen - TUNNEL_NONCE_LENGTH - TUNNEL_HMAC_LENGTH), TUNNEL_NONCE_LENGTH); /* copy out the nonceOdd from the host for future use*/
@@ -328,7 +328,7 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                     commandInFlight->paramHead = parameterLen - TUNNEL_FIELD_ORD_LEN;
                     commandInFlight->authOkay = false;
                 }
-                commandInFlight->command = extract32(commandInFlight->params, 0);
+                commandInFlight->command = Utilities_extract32(commandInFlight->params, 0);
                 commandInFlight->params = commandInFlight->params + TUNNEL_FIELD_ORD_LEN; //set this pointer 4 in to pass over the command ordinal
                 commandInFlight->extractHead = 0;
                 phase = PHASE_IDLE;

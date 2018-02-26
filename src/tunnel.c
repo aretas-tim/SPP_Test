@@ -11,7 +11,7 @@
 #include "sram2.h"
 #include "md.h"
 #include <stdbool.h>
-#include "tpm_utils.h"
+#include "utilities.h"
 #include "backup_regs.h"
 
 extern LockStatus statusLock;
@@ -198,7 +198,7 @@ int32_t TUNNEL_InitHandler(TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* o
     }
     //set up our end of the tunnel
     uint8_t salt[TRANSPORT_KEY_LEN];
-    getRandomBuff(NULL, salt, TRANSPORT_KEY_LEN); //random salt
+    Utilities_getRandomBuff(NULL, salt, TRANSPORT_KEY_LEN); //random salt
     uint8_t transportKey[TRANSPORT_KEY_LEN];
 #ifdef DEBUG_BYPASS_SECURITY
     uint8_t testOTC[6] = {'1', '2', '3', '4', '5', '6'};
@@ -208,14 +208,14 @@ int32_t TUNNEL_InitHandler(TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* o
     TUNNEL_DeriveSessionKey(transportKey, tunnel->sessionCounter, salt, TRANSPORT_KEY_LEN, otc, otcLen);
 #endif /*DEBUG_BYPASS_SECURITY */
     uint8_t localNonces[TUNNEL_NONCE_LENGTH * 2];
-    getRandomBuff(NULL, localNonces, TUNNEL_NONCE_LENGTH); //get a random nonce for the session even nonce
+    Utilities_getRandomBuff(NULL, localNonces, TUNNEL_NONCE_LENGTH); //get a random nonce for the session even nonce
     memcpy(localNonces + TUNNEL_NONCE_LENGTH, nonceIn, TUNNEL_NONCE_LENGTH); //concatenate the incoming session odd nonce to the end of ours
     //HMAC the combined nonces, with the shared secret as the key to derive our sessionKey
     mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), transportKey, TRANSPORT_KEY_LEN, localNonces, (TUNNEL_NONCE_LENGTH * 2), tunnel->sessionKey);
     //initialize the aes context with the session key
     mbedtls_aes_setkey_enc(&(tunnel->aesctx), tunnel->sessionKey, TRANSPORT_KEY_LEN * 8);
 
-    getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); //even nonce that will form part of the HMAC for the next authorized command from the host
+    Utilities_getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); //even nonce that will form part of the HMAC for the next authorized command from the host
 
     tunnel->sessionAlive = 1; //we're good
     TUNNEL_BufferInit(&tunnelBuffer); //set up buffer
@@ -281,15 +281,15 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
     size_t length = TUNNEL_HEADER_LEN + SIZE_OF_UINT32 + buff->paramHead;
 
     if(authorized) {
-        fifoHead += packToBuffer16(fifo, fifoHead, TUNNEL_TAG_RSP_ENC);
+        fifoHead += Utilities_packToBuffer16(fifo, fifoHead, TUNNEL_TAG_RSP_ENC);
         length += TUNNEL_LEN_RSP_ENC;
     } else {
-        fifoHead += packToBuffer16(fifo, fifoHead, TUNNEL_TAG_RSP_CLEAR);
+        fifoHead += Utilities_packToBuffer16(fifo, fifoHead, TUNNEL_TAG_RSP_CLEAR);
     }
-    fifoHead += packToBuffer32(fifo, fifoHead, length);
+    fifoHead += Utilities_packToBuffer32(fifo, fifoHead, length);
 
     //this is kinda ugly, but at least its only happening once
-    packToBuffer32(temp, 0, responseCode);
+    Utilities_packToBuffer32(temp, 0, responseCode);
     memcpy(fifo + fifoHead, temp, SIZE_OF_UINT32);
     fifoHead += SIZE_OF_UINT32;
 
@@ -305,7 +305,7 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
         uart_debug_sendline("Tunnel Digest Parameters:\n");
         uart_debug_hexdump(temp, SIZE_OF_UINT32);
         //.. twice
-        packToBuffer32(temp, 0, commandCode);
+        Utilities_packToBuffer32(temp, 0, commandCode);
         mbedtls_sha256_update(&digestCtx, temp, SIZE_OF_UINT32); //command Code (included in the digest but not part of the return parameters)
         uart_debug_hexdump(temp, SIZE_OF_UINT32);
 
@@ -324,7 +324,7 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
 
         mbedtls_md_hmac_update(&hmacCtx, digest, TUNNEL_HASH_LENGTH);
 
-        getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); // get a new nonce
+        Utilities_getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); // get a new nonce
         mbedtls_md_hmac_update(&hmacCtx, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); // add it to the HMAC
         memcpy(fifo + fifoHead, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); // also add it to the authsection to send back to the host
         fifoHead += TUNNEL_NONCE_LENGTH; //update our head location
@@ -433,13 +433,13 @@ size_t TUNNEL_BufferExtend8(TUNNEL_BUFFER_CTX* buff, uint8_t in) {
 size_t TUNNEL_BufferExtend16(TUNNEL_BUFFER_CTX* buff, uint16_t in) {
     size_t len = 2;
     uint8_t temp[len];
-    packToBuffer16(temp, 0, in);
+    Utilities_packToBuffer16(temp, 0, in);
     return TUNNEL_BufferExtend(buff, temp, len);
 }
 size_t TUNNEL_BufferExtend32(TUNNEL_BUFFER_CTX* buff, uint32_t in) {
     size_t len = 4;
     uint8_t temp[len];
-    packToBuffer32(temp, 0, in);
+    Utilities_packToBuffer32(temp, 0, in);
     return TUNNEL_BufferExtend(buff, temp, len);
 }
 /* does not check for overflow*/
@@ -451,7 +451,7 @@ size_t TUNNEL_BufferExtendStructure(TUNNEL_BUFFER_CTX* buff, size_t (*packFuncti
 void TUNNEL_BufferExtendDigestOnly32(TUNNEL_BUFFER_CTX* buff, uint32_t in) {
     size_t len = 4;
     uint8_t temp[len];
-    packToBuffer32(temp, 0, in);
+    Utilities_packToBuffer32(temp, 0, in);
     TUNNEL_BufferExtendDigestOnly(buff, temp, len);
     return;
 }
@@ -536,7 +536,7 @@ int32_t TUNNEL_BufferMakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX*
 int32_t TUNNEL_MakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff) {
     uint8_t hmacBuff[TUNNEL_HASH_LENGTH + (TUNNEL_NONCE_LENGTH * 2)]; /* temp buffer for the hmac*/
     memcpy(hmacBuff, buff->digest, TUNNEL_HASH_LENGTH); /* start with the (already computed) digest*/
-    getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); /* get a new nonce*/
+    Utilities_getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); /* get a new nonce*/
     memcpy(hmacBuff + TUNNEL_HASH_LENGTH, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); /* add that to the temp buffer*/
     memcpy(buff->authSection, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); /*also add it to the authsection to send back to the host*/
     memcpy(hmacBuff + TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH, tunnel->nonceOdd, TUNNEL_NONCE_LENGTH); /* add the nonce from the host*/
@@ -576,7 +576,7 @@ size_t TUNNEL_BufferGet(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t lenMax) {
     if(len > lenMax) {
         return 0;
     }
-    packToBuffer32(buff->params, TUNNEL_POS_LEN, len);
+    Utilities_packToBuffer32(buff->params, TUNNEL_POS_LEN, len);
     memcpy(out, buff->params, buff->paramHead);
     head += buff->paramHead;
     if(buff->hasAuth) {
@@ -587,7 +587,7 @@ size_t TUNNEL_BufferGet(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t lenMax) {
 }
 
 size_t TUNNEL_BufferCalcLength(TUNNEL_BUFFER_CTX* buff) {
-    packToBuffer32(buff->params, TUNNEL_POS_LEN, buff->paramHead);
+    Utilities_packToBuffer32(buff->params, TUNNEL_POS_LEN, buff->paramHead);
     return buff->paramHead;
 }
 
@@ -602,7 +602,7 @@ size_t TUNNEL_BufferCalcLength(TUNNEL_BUFFER_CTX* buff) {
 void freeCommandBuffer(CommandBuffer* buffer) {
     buffer->authorized = 0;
     buffer->command = TUNNEL_ORD_NONE;
-    zeroize(buffer->params, buffer->paramLen);
+    Utilities_zeroize(buffer->params, buffer->paramLen);
     buffer->paramLen = 0;
     buffer->extractHead = 0;
     //free(buffer->params); //how this didn't cause issues before i'm not sure
@@ -618,7 +618,7 @@ size_t TUNNEL_AES_CTR_CryptInPlace(TransportTunnel* tunnel, uint8_t* buffer, siz
         if(blockLen > (len - pos)) {
             blockLen = len - pos;
         }
-        TPM_AES_CTR_Crypt(&(tunnel->aesctx), blockLen, tunnel->sessionCounter, buffer + pos, temp);
+        Utilities_tpmAesCtrCrypt(&(tunnel->aesctx), blockLen, tunnel->sessionCounter, buffer + pos, temp);
         memcpy(buffer + pos, temp, blockLen);
         pos += blockLen;
         tunnel->blocksEncrypted++;
@@ -1080,18 +1080,18 @@ uint32_t TUNNEL_TPM_Seal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX *cbuff, I2C_
 
     TPM_KEY_HANDLE kh = TUNNEL_BufferExtract32(cbuff);
     if(TPM_KH_SRK == kh) {
-        //extractHead += extractBuffer(localKeyAuthData, keyAuthData, digestSize);
+        //extractHead += Utilities_extractBuffer(localKeyAuthData, keyAuthData, digestSize);
         memcpy(localKeyAuthData, keyAuthData, digestSize);
         cbuff->extractHead += digestSize; //force it to skip ahead, over the empty keyAuthData field
         et |= TPM_ET_SRK;
     } else {
         //memcpy(localKeyAuthData, (cbuff->params + extractHead), digestSize);
-        //extractHead += extractBuffer(localKeyAuthData, (cbuff->params + extractHead), digestSize);
+        //extractHead += Utilities_extractBuffer(localKeyAuthData, (cbuff->params + extractHead), digestSize);
         TUNNEL_BufferExtractBuffer(cbuff, localKeyAuthData, digestSize);
         et |= TPM_ET_KEY;
     }
     TUNNEL_BufferExtractBuffer(cbuff, dataAuthData, digestSize);
-    //extractHead += extractBuffer(dataAuthData, (cbuff->params + extractHead), digestSize);
+    //extractHead += Utilities_extractBuffer(dataAuthData, (cbuff->params + extractHead), digestSize);
     uint32_t pcrInfoSize = TUNNEL_BufferExtract32(cbuff);
     if(pcrInfoSize) { //if we have PCRs specified
         if (cbuff->paramHead < (TUNNEL_PLEN_ORD_SEAL_NOPCRS + pcrInfoSize)) {
@@ -1109,7 +1109,7 @@ uint32_t TUNNEL_TPM_Seal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX *cbuff, I2C_
         freeTPM_STORED_DATA12(&outData); // just in case
         return TUNNEL_RSP_OUT_OF_MEMORY;
     }
-    extractHead += extractBuffer(inData, (cbuff->params + extractHead), dataSize);*/
+    extractHead += Utilities_extractBuffer(inData, (cbuff->params + extractHead), dataSize);*/
     /*
     AuthSession localOSAPSession; //use a local session as it ends immediately due to authdata insertion
     TPM_AuthSessionInit(&localOSAPSession);

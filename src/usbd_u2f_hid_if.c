@@ -34,7 +34,7 @@
 #include "u2f_hid.h"
 #include "led.h" /* wink */
 #include <stdbool.h>
-#include "utilities.h" /* packToBuffer32 */
+#include "utilities.h" /* Utilities_packToBuffer32 */
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/

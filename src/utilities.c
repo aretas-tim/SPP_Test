@@ -5,7 +5,7 @@
  *      Author: me
  */
 
-#include "tpm_utils.h"
+#include "utilities.h"
 #include "string.h"
 
 RNG_HandleTypeDef* util_rng = NULL;
@@ -19,7 +19,7 @@ RNG_HandleTypeDef* util_rng = NULL;
 /* takes a 16 bit value and packs it in to a buffer at the given position
  * does not check for overrun or anything. be careful!
  */
-size_t packToBuffer16(uint8_t* buff, uint32_t pos, uint16_t data) {
+size_t Utilities_packToBuffer16(uint8_t* buff, uint32_t pos, uint16_t data) {
     buff[pos] = data >> 8;
     buff[pos + 1] = (data & 0xFF);
     return 2;
@@ -28,7 +28,7 @@ size_t packToBuffer16(uint8_t* buff, uint32_t pos, uint16_t data) {
 /* takes a 32 bit value and packs it in to a buffer at the given position
  * does not check for overrun or anything. be careful!
  */
-size_t packToBuffer32(uint8_t* buff, uint32_t pos, uint32_t data) {
+size_t Utilities_packToBuffer32(uint8_t* buff, uint32_t pos, uint32_t data) {
     buff[pos]     = data >> 24;
     buff[pos + 1] = (data & 0x00FF0000) >> 16;
     buff[pos + 2] = (data & 0x0000FF00) >> 8;
@@ -36,7 +36,7 @@ size_t packToBuffer32(uint8_t* buff, uint32_t pos, uint32_t data) {
     return 4;
 }
 /* extracts four bytes starting at pos from buff, returns as a uint32_t */
-uint32_t extract32(uint8_t* buff, uint32_t pos) {
+uint32_t Utilities_extract32(uint8_t* buff, uint32_t pos) {
     uint32_t val = buff[pos] << 24;
     val += buff[pos + 1] << 16;
     val += buff[pos + 2] << 8;
@@ -44,13 +44,13 @@ uint32_t extract32(uint8_t* buff, uint32_t pos) {
     return val;
 }
 /* extracts two bytes starting at pos from buff, returns as a uint16_t */
-uint16_t extract16(uint8_t* buff, uint32_t pos) {
+uint16_t Utilities_extract16(uint8_t* buff, uint32_t pos) {
     uint16_t val = buff[pos] << 8;
     val += buff[pos + 1];
     return val;
 }
 /* basically a wrapper around memcpy that returns the buffer length instead of the to pointer*/
-size_t extractBuffer(uint8_t* outBuff, uint8_t* inBuff, size_t len) {
+size_t Utilities_extractBuffer(uint8_t* outBuff, uint8_t* inBuff, size_t len) {
     memcpy(outBuff, inBuff, len);
     return len;
 }
@@ -58,14 +58,14 @@ size_t extractBuffer(uint8_t* outBuff, uint8_t* inBuff, size_t len) {
 /* inspired by mbedtls aes.c, simplified to only work on uint8_t*s.
  * zeroes out memory, might need to be re-implemented if its optimized out somehow*/
 
-void zeroize(uint8_t* d, uint32_t len) {
+void Utilities_zeroize(uint8_t* d, uint32_t len) {
     volatile uint8_t* e = d;
      for(uint32_t i = 0; i < len; ++i) {
          *(e + i) = 0;
      }
  }
 
-int32_t Utilities_Init(RNG_HandleTypeDef* hrng) {
+uint32_t Utilities_init(RNG_HandleTypeDef* hrng) {
     if(NULL != hrng) {
         util_rng = hrng;
         return 0;
@@ -77,7 +77,7 @@ int32_t Utilities_Init(RNG_HandleTypeDef* hrng) {
 /* to interact with the mbedtls library for RSA encryption, need to hook it in to the RNG
  * param is ignored as i have no idea what its for, but the mbedtls requires it. just pass it NULL
  */
-int getRandomBuff(void* param, unsigned char* buff, size_t len) {
+int Utilities_getRandomBuff(void* param, unsigned char* buff, size_t len) {
     if(NULL == util_rng) {
         return -1;
     }
@@ -104,7 +104,7 @@ int getRandomBuff(void* param, unsigned char* buff, size_t len) {
  * hopefully in constant-time
  * returns 1 if they match, 0 if they do not.
  */
-uint8_t compareDigests(uint8_t* digestOne, uint8_t* digestTwo, uint32_t len) {
+uint8_t Utilities_compareDigests(const uint8_t const *digestOne, const uint8_t const *digestTwo, const uint32_t len) {
     uint8_t match = 0;
     for(uint32_t i = 0; i < len; ++i) {
         match |= digestOne[i] ^ digestTwo[i];
@@ -118,7 +118,7 @@ uint8_t compareDigests(uint8_t* digestOne, uint8_t* digestTwo, uint32_t len) {
  * fixed to 32 bit nonce rollover as per TPM part 1 31.1.3 (i.e. most significant 96 bits are fixed, least significant 32 rollover after 0x...FFFFFFFF
  *
  */
-int32_t TPM_AES_CTR_Crypt(mbedtls_aes_context* ctx, size_t length, uint8_t nonce_counter[16], uint8_t* input, uint8_t* output) {
+int32_t Utilities_tpmAesCtrCrypt(mbedtls_aes_context* ctx, size_t length, uint8_t nonce_counter[16], uint8_t* input, uint8_t* output) {
     int c, i;
     int blockSize = 16; //@TODO demagic this
     uint8_t stream_block[blockSize];
@@ -220,7 +220,7 @@ int32_t TPM_AES_CTR_Crypt(mbedtls_aes_context* ctx, size_t length, uint8_t nonce
         }
         counter++;
         mbedtls_md_hmac_starts(&ctx, key->buffer, key->size); //init HMAC
-        packToBuffer32(marshaledUint32, 0, counter);
+        Utilities_packToBuffer32(marshaledUint32, 0, counter);
         uart_debug_hexdump(marshaledUint32, 4);
         mbedtls_md_hmac_update(&ctx, marshaledUint32, sizeof(uint32_t));
         if(label != NULL) {
@@ -232,7 +232,7 @@ int32_t TPM_AES_CTR_Crypt(mbedtls_aes_context* ctx, size_t length, uint8_t nonce
         if(contextV != NULL) {
             mbedtls_md_hmac_update(&ctx, contextV->buffer, contextV->size);
         }
-        packToBuffer32(marshaledUint32, 0, sizeInBits);
+        Utilities_packToBuffer32(marshaledUint32, 0, sizeInBits);
         uart_debug_hexdump(marshaledUint32, 4);
         mbedtls_md_hmac_update(&ctx, marshaledUint32, sizeof(uint32_t));
         mbedtls_md_hmac_finish(&ctx, hmacOut);
