@@ -71,64 +71,7 @@ uint16_t TunnelShim_getNumBytesFromPacket(TunnelShim_Packet* packet) {
     }
 }
 
-void setBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return;
-    } else {
-        map[byteNum] |= (uint8_t) 1 << (bitNum & 0x7);
-    }
-}
 
-void clearBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return;
-    } else {
-        map[byteNum] &= ~((uint8_t) 1 << (bitNum & 0x7));
-    }
-}
-
-bool checkBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return false;
-    } else {
-        return (map[byteNum] & ((uint8_t) 1 << (bitNum & 0x7))) ? true : false; //abuse conditional so we're not returning "128" for true or something
-    }
-}
-
-/**
- * gets the bit number of the lowest unset bit in the map
- * just a linear search.
- * this is not designed for use on large maps
- * returns BITMAP_NO_BIT_FOUND (0xFFFFFFFF) if there are no unset bits in the map
- * otherwise returns from 0 to 524,287 (2^19 less one) depending on the length of the map
- */
-uint32_t getLowestUnsetBitInMap(uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = 0;
-    while((map[byteNum] == 0xFF) && (byteNum < mapByteLen)) {
-        byteNum++;
-    }
-    if(byteNum < mapByteLen) { //at least one bit in this byte is 0
-        uint32_t bitNum = 0;
-        uint8_t byte = map[byteNum];
-        //search linearly through the byte, LSBit to MSBit
-        for(uint8_t b = 1; b; b <<= 1) {
-            if(byte & b) {
-                bitNum++; //increment this
-            } else {
-                //not set, found it!
-                break;
-            }
-        }
-        bitNum += byteNum << 3; //add our byte number
-        return bitNum;
-
-    } else {
-        return BITMAP_NO_BIT_FOUND; //error, no bit found
-    }
-}
 
 
 //bool isInitiationPacket
