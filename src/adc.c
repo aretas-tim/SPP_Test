@@ -28,7 +28,7 @@ uint16_t Adc_getVBat(ADC_HandleTypeDef* hadc) {
     HAL_ADC_Start(hadc);
     HAL_ADC_PollForConversion(hadc, 1000);
     uint32_t result = HAL_ADC_GetValue(hadc);
-    //uart_debug_printuint32(result);
+    //UartDebug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
     ADC123_COMMON->CCR &= ~ADC_CCR_VBATEN; //disable channel to prevent draining the backup battery after making the measurement
@@ -50,7 +50,7 @@ uint16_t Adc_getPCIE12VSense(ADC_HandleTypeDef* hadc) {
     HAL_ADC_Start(hadc);
     HAL_ADC_PollForConversion(hadc, 1000);
     uint32_t result = HAL_ADC_GetValue(hadc);
-    //uart_debug_printuint32(result);
+    //UartDebug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
 
@@ -74,7 +74,7 @@ uint16_t Adc_getVRefInt(ADC_HandleTypeDef* hadc) {
     HAL_ADC_Start(hadc);
     HAL_ADC_PollForConversion(hadc, 1000);
     uint32_t result = HAL_ADC_GetValue(hadc);
-    //uart_debug_printuint32(result);
+    //UartDebug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
 
@@ -88,7 +88,7 @@ uint16_t Adc_getVCCmV(ADC_HandleTypeDef* hadc) {
         return (uint16_t) ((uint32_t) ADC_VREFINT_RESULT_TO_VCC_MV_DIVIDEND / vrefint);
     } else {
 #ifdef DEBUG
-        uart_debug_sendline("VRefInt was 0 when attempting to get VCC voltage.\n");
+        UartDebug_sendline("VRefInt was 0 when attempting to get VCC voltage.\n");
 #endif /* DEBUG */
         return 0;
     }
@@ -110,7 +110,7 @@ uint16_t Adc_getVBus(ADC_HandleTypeDef* hadc) {
     HAL_ADC_Start(hadc);
     HAL_ADC_PollForConversion(hadc, 1000);
     uint32_t result = HAL_ADC_GetValue(hadc);
-    //uart_debug_printuint32(result);
+    //UartDebug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
 
@@ -134,7 +134,7 @@ uint16_t Adc_getVMain(ADC_HandleTypeDef* hadc) {
     HAL_ADC_Start(hadc);
     HAL_ADC_PollForConversion(hadc, 1000);
     uint32_t result = HAL_ADC_GetValue(hadc);
-    //uart_debug_printuint32(result);
+    //UartDebug_printuint32(result);
 
     HAL_ADC_Stop(hadc);
 

@@ -136,9 +136,9 @@ static int8_t HOTKEY_HID_DeInit(void)
   */
 static int8_t HOTKEY_HID_OutEvent  (uint8_t* report )
 { 
-    uart_debug_addToBuffer("USB Hotkey HID Received:\n", 25);
-    uart_debug_hexdump(report, USBD_HOTKEY_HID_OUTREPORT_BUF_SIZE);
-    uart_debug_newline();
+    UartDebug_addToBuffer("USB Hotkey HID Received:\n", 25);
+    UartDebug_hexdump(report, USBD_HOTKEY_HID_OUTREPORT_BUF_SIZE);
+    UartDebug_newline();
 
     //? have to confirm this
 
@@ -169,7 +169,7 @@ uint16_t HOTKEY_HID_SendString(char* text) {
     if(hhid->transmitState != HID_IDLE) {
         return 0; //HID busy, nothing sent
     }
-    //uart_debug_hexdump(text, 32);
+    //UartDebug_hexdump(text, 32);
     uint16_t len = 0;
     while((*text != '\0') && (len < HOTKEY_INTERNAL_BUFFER_LEN)) {
         getKeyFromASCII(*text, &(HOTKEY_InternalBuffer[len]));
@@ -179,9 +179,9 @@ uint16_t HOTKEY_HID_SendString(char* text) {
         }
         len++;
     }
-    //uart_debug_hexprint32(len);
-    //uart_debug_sendline("USB Hotkey HID Send:\n");
-    //uart_debug_hexdump((uint8_t*) HOTKEY_InternalBuffer, sizeof(KeyWithModifiers) * len);
+    //UartDebug_hexprint32(len);
+    //UartDebug_sendline("USB Hotkey HID Send:\n");
+    //UartDebug_hexdump((uint8_t*) HOTKEY_InternalBuffer, sizeof(KeyWithModifiers) * len);
 
     HOTKEY_HID_SendScancodes(HOTKEY_InternalBuffer, len);
     return len;
@@ -211,8 +211,8 @@ uint16_t HOTKEY_HID_SendScancodes(KeyWithModifiers* codes, uint16_t len) {
     hhid->transmitBufferLen = len - 1;
     hhid->isFirstChar = true;
 
-    //uart_debug_sendline("USB Hotkey HID Send:\n");
-    //uart_debug_hexdump((uint8_t*) codes, sizeof(KeyWithModifiers) * len);
+    //UartDebug_sendline("USB Hotkey HID Send:\n");
+    //UartDebug_hexdump((uint8_t*) codes, sizeof(KeyWithModifiers) * len);
 
 
 
@@ -220,8 +220,8 @@ uint16_t HOTKEY_HID_SendScancodes(KeyWithModifiers* codes, uint16_t len) {
     if (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED ) {
         if(hhid->transmitState == HID_IDLE) {
             hhid->transmitState = HID_BUSY;
-            //uart_debug_sendline("USB HID Sent:\n");
-            //uart_debug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
+            //UartDebug_sendline("USB HID Sent:\n");
+            //UartDebug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
             USBD_LL_Transmit (&hUsbDeviceFS, HOTKEY_HID_EPIN_ADDR, report, HOTKEY_HID_EPIN_SIZE);
             return len;
         } else {

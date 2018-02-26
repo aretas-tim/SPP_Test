@@ -105,9 +105,9 @@ void (*TUNNEL_HID_DisconnectedCallback)(void) = NULL;
 static int8_t TUNNEL_HID_Init(void) {
     uint8_t initResp = TunnelShim_initContext(&TUNNEL_HID_ShimContext, TUNNEL_HID_Buffer, TUNNEL_HID_BUFFER_LEN, TUNNEL_HID_EPIN_SIZE, &TUNNEL_HID_ShimCallbacks);
 
-    //uart_debug_sendstring("Tunnel HID Enable Interrupt at: ");
-    //uart_debug_hexprint32((uint32_t) TUNNEL_HID_EnableInterrupt); //yes it'll complain about the cast
-    //uart_debug_newline();
+    //UartDebug_sendString("Tunnel HID Enable Interrupt at: ");
+    //UartDebug_hexprint32((uint32_t) TUNNEL_HID_EnableInterrupt); //yes it'll complain about the cast
+    //UartDebug_newline();
     if(initResp == 0) {
         return USBD_OK;
     } else {
@@ -148,7 +148,7 @@ static uint16_t TUNNEL_HID_Transmit(uint8_t* data, uint16_t len) {
     USBD_TUNNEL_HID_HandleTypeDef* hTunnelHID = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->tunnelHIDData);
     if((hTunnelHID->transmitState == HID_BUSY) || (data == NULL) || (len == 0)) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Tunnel HID Transmit called but cannot transmit.\n");
+        UartDebug_sendline("Tunnel HID Transmit called but cannot transmit.\n");
 #endif
         return 0; //already transmitting or no point to transmit
     } else {
@@ -166,8 +166,8 @@ static uint16_t TUNNEL_HID_Transmit(uint8_t* data, uint16_t len) {
         USBD_LL_Transmit(&hUsbDeviceFS, TUNNEL_HID_EPIN_ADDR, data, TUNNEL_HID_EPIN_SIZE);
         LED_UpdateUSBActivity();
 #if defined DEBUG && (TUNNEL_HID_VERBOSE > 1)
-        uart_debug_sendline("Tunnel HID Transmit packet sent from IF Transmit:\n");
-        uart_debug_hexdump(data, TUNNEL_HID_EPIN_SIZE);
+        UartDebug_sendline("Tunnel HID Transmit packet sent from IF Transmit:\n");
+        UartDebug_hexdump(data, TUNNEL_HID_EPIN_SIZE);
 #endif
         return len;
     }

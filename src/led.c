@@ -70,11 +70,11 @@ uint16_t LED_WorkingPrescaleLookup[] = { LED_TIMER_PSC_OFF, LED_TIMER_PSC_SLEEPI
 void LED_Init(I2C_HandleTypeDef* handle, GPIO_TypeDef* shutdownPort, uint16_t shutdownPin) {
 #ifdef DEVICE_0_A_1_1_S
     if(handle == NULL) {
-        uart_debug_sendline("I2C Handle null while initializing LED Subsystem. LEDs disabled.\n");
+        UartDebug_sendline("I2C Handle null while initializing LED Subsystem. LEDs disabled.\n");
         return;
     }
     if(shutdownPort == NULL) {
-        uart_debug_sendline("Shutdown Port null while initializing LED Subsystem. LEDs disabled.\n");
+        UartDebug_sendline("Shutdown Port null while initializing LED Subsystem. LEDs disabled.\n");
         return;
     }
     LED_I2CHandle = handle;
@@ -97,7 +97,7 @@ void LED_Init(I2C_HandleTypeDef* handle, GPIO_TypeDef* shutdownPort, uint16_t sh
     HAL_StatusTypeDef rc = HAL_I2C_Master_Transmit_IT(LED_I2CHandle, LED_DRIVER_ADDRESS, LED_BufferRaw, LED_DRIVER_NUM_REGS + 1);
     //HAL_StatusTypeDef rc = HAL_I2C_Mem_Write(LED_I2CHandle, LED_DRIVER_ADDRESS, LED_DRIVER_REG_SHUTDOWN, I2C_MEMADD_SIZE_8BIT, LED_BufferRaw, LED_DRIVER_NUM_REGS + 1, 1000);
     if(rc != HAL_OK) {
-        uart_debug_sendline("Error Initializing LED Driver.\n");
+        UartDebug_sendline("Error Initializing LED Driver.\n");
     }
 
 #endif /* DEVICE_0_A_1_1_S */
@@ -276,25 +276,25 @@ void LED_DoInitCycle(uint8_t cyclePosition, uint8_t* ledBuffer) {
             TIM3->CCR1 = 0xFF;
             TIM3->CCR2 = 0;
             TIM3->CCR3 = 0;
-            //uart_debug_putchar('R');
+            //UartDebug_putchar('R');
             break;
         case INIT_THIRD_CYCLE_TIME ... ((INIT_THIRD_CYCLE_TIME * 2) - 1):
             TIM3->CCR1 = 0;
             TIM3->CCR2 = 0xFF;
             TIM3->CCR3 = 0;
-            //uart_debug_putchar('G');
+            //UartDebug_putchar('G');
             break;
         case (INIT_THIRD_CYCLE_TIME * 2) ... ((INIT_THIRD_CYCLE_TIME * 3) - 1):
             TIM3->CCR1 = 0;
             TIM3->CCR2 = 0;
             TIM3->CCR3 = 0xFF;
-            //uart_debug_putchar('B');
+            //UartDebug_putchar('B');
             break;
         default:
             TIM3->CCR1 = 0xFF;
             TIM3->CCR2 = 0xFF;
             TIM3->CCR3 = 0xFF;
-            //uart_debug_putchar('X');
+            //UartDebug_putchar('X');
             break;
     }
 #endif /* DEVICE_0_A_1_1_U */
@@ -704,8 +704,8 @@ void LED_HeartbeatUpdate(LockStatus s, WorkStatus w) {
     static uint8_t dumpCtr = 0;
     if((++dumpCtr) == 60) {
         dumpCtr = 0;
-        uart_debug_sendline("LED Data Dump:\n");
-        uart_debug_hexdump(LED_Buffer + LED_DRIVER_REG_PWM_BASE, NUM_LEDS);
+        UartDebug_sendline("LED Data Dump:\n");
+        UartDebug_hexdump(LED_Buffer + LED_DRIVER_REG_PWM_BASE, NUM_LEDS);
     }
 
 

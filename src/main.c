@@ -150,7 +150,7 @@ int main(void)
   //Init_spiMsInit(&hspi_ms); //@TODO reenable this
   Init_spiIccInit(&hspi_icc, &hdma_icc_rx, &hdma_icc_tx);
 
-  UART_Debug_Init(&huart_debug);
+  UartDebug_init(&huart_debug);
 
 
 
@@ -166,7 +166,7 @@ int main(void)
   Icc_init(&hspi_icc, GPIOC, GPIO_PIN_13, GPIOD, GPIO_PIN_2);
   Icc_start();
   HAL_Delay(10); //will force systick to fire
-  uart_debug_sendline("USB Micro Started!\r\n");
+  UartDebug_sendline("USB Micro Started!\r\n");
 
 
 while (1)
@@ -193,7 +193,7 @@ while (1)
         }
 
         U2F_HID_SecondTick(); //prevents the U2F HID system from locking up due to an unresponsive or ended host process
-        uart_debug_sendline("Second Tick!\n");
+        UartDebug_sendline("Second Tick!\n");
 
 
     }
@@ -252,8 +252,8 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                 if(bytesRead >= TUNNEL_HEADER_LEN) {
                     cmdLen = Utilities_extract32(commandReceiveBuffer, TUNNEL_POS_LEN);
 #ifdef DEBUG
-                    uart_debug_sendline("Tunnel Incoming Header Dump:\n");
-                    uart_debug_hexdump(commandReceiveBuffer, TUNNEL_HEADER_LEN);
+                    UartDebug_sendline("Tunnel Incoming Header Dump:\n");
+                    UartDebug_hexdump(commandReceiveBuffer, TUNNEL_HEADER_LEN);
 #endif /*DEBUG*/
                     if(cmdLen <= SRAM2_TUNNEL_RX_BUFF_LEN) {
                         phase = PHASE_BODY;
@@ -285,15 +285,15 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                 }
                 uint32_t parameterLen = receiveDataFunc(commandInFlight->params, (cmdLen - TUNNEL_HEADER_LEN)); //read out the rest of the command in to the parameter buffer
 #ifdef DEBUG
-                uart_debug_sendline("Tunnel Incoming Command Dump:\n");
-                uart_debug_hexdump(commandInFlight->params, parameterLen);
+                UartDebug_sendline("Tunnel Incoming Command Dump:\n");
+                UartDebug_hexdump(commandInFlight->params, parameterLen);
 #endif /*DEBUG*/
                 if(TUNNEL_TAG_CMD_ENC == commandInFlight->tag) {
                     //encrypted command
                     TUNNEL_AES_CTR_CryptInPlace(tunnel, commandInFlight->params, parameterLen);
 #ifdef DEBUG
-                    uart_debug_sendline("Tunnel Decrypted Command Dump:\n");
-                    uart_debug_hexdump(commandInFlight->params, parameterLen);
+                    UartDebug_sendline("Tunnel Decrypted Command Dump:\n");
+                    UartDebug_hexdump(commandInFlight->params, parameterLen);
 #endif /* DEBUG */
                     /* have a decrypted buffer at this point */
                     uint8_t hmacBuff[TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH * 2]; //temp buffer for our HMAC paramaters
@@ -309,13 +309,13 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
                     //check local hmac vs incoming hmac
                     uint8_t authPassed = Utilities_compareDigests(hmacResultBuff, commandInFlight->params + (parameterLen- TUNNEL_HMAC_LENGTH), TUNNEL_HMAC_LENGTH);
                     if(authPassed) {
-                        uart_debug_sendline("Tunnel Command Authorization Passed.\n");
+                        UartDebug_sendline("Tunnel Command Authorization Passed.\n");
                         memcpy(tunnel->nonceOdd, commandInFlight->params + (parameterLen - TUNNEL_NONCE_LENGTH - TUNNEL_HMAC_LENGTH), TUNNEL_NONCE_LENGTH); /* copy out the nonceOdd from the host for future use*/
                         commandInFlight->paramHead = parameterLen - (TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH + TUNNEL_FIELD_ORD_LEN);
                         commandInFlight->authOkay = true;
                     } else {
                         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_AUTHFAIL);
-                        uart_debug_sendline("Tunnel Command Authorization Failed.\n");
+                        UartDebug_sendline("Tunnel Command Authorization Failed.\n");
                         phase = PHASE_IDLE;
                         bytesRead = 0;
                         cmdLen = 0;
@@ -359,7 +359,7 @@ uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) 
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     if(huart == &huart_debug) {
-        uart_debug_callback();
+        UartDebug_callback();
     }
 
 }
@@ -395,11 +395,11 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef* hspicb) {
 
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef* hspicb) {
     if(hspicb == &hspi_icc) {
-        uart_debug_sendstring("ICC SPI Error: ");
-        uart_debug_hexprint32(hspicb->ErrorCode);
-        uart_debug_newline();
-        uart_debug_hexprint32(hspicb->Instance->SR);
-        uart_debug_newline();
+        UartDebug_sendString("ICC SPI Error: ");
+        UartDebug_hexprint32(hspicb->ErrorCode);
+        UartDebug_newline();
+        UartDebug_hexprint32(hspicb->Instance->SR);
+        UartDebug_newline();
     }
 }
 

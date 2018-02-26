@@ -194,22 +194,22 @@ uint8_t  USBD_HOTKEY_HID_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *
     USBD_HOTKEY_HID_HandleTypeDef* hHotkeyHID = (USBD_HOTKEY_HID_HandleTypeDef*) pdev->pClassData;
     USBD_HOTKEY_HID_ItfTypeDef* hHotkeyHID_cb = (USBD_HOTKEY_HID_ItfTypeDef*) pdev->pUserData;
 
-    uart_debug_sendline("Setup Request:\n");
-    uart_debug_addToBuffer("bmRequestType: ", 15);
-    uart_debug_hexprint32(req->bmRequest);
-    uart_debug_newline();
-    uart_debug_addToBuffer("bRequest: ", 10);
-    uart_debug_hexprint32(req->bRequest);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wIndex: ", 8);
-    uart_debug_hexprint32(req->wIndex);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wValue: ", 8);
-    uart_debug_hexprint32(req->wValue);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wLength: ", 9);
-    uart_debug_hexprint32(req->wLength);
-    uart_debug_newline();
+    UartDebug_sendline("Setup Request:\n");
+    UartDebug_addToBuffer("bmRequestType: ", 15);
+    UartDebug_hexprint32(req->bmRequest);
+    UartDebug_newline();
+    UartDebug_addToBuffer("bRequest: ", 10);
+    UartDebug_hexprint32(req->bRequest);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wIndex: ", 8);
+    UartDebug_hexprint32(req->wIndex);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wValue: ", 8);
+    UartDebug_hexprint32(req->wValue);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wLength: ", 9);
+    UartDebug_hexprint32(req->wLength);
+    UartDebug_newline();
 
     switch (req->bmRequest & USB_REQ_TYPE_MASK) {
         case USB_REQ_TYPE_CLASS :
@@ -272,7 +272,7 @@ uint8_t  USBD_HOTKEY_HID_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *
                         USBD_LL_CloseEP (pdev , (uint8_t)req->wIndex);
                         //wIndex has the EP number
 
-                        uart_debug_sendline("Clear Feature on KB HID IN\n");
+                        UartDebug_sendline("Clear Feature on KB HID IN\n");
                         USBD_LL_OpenEP(pdev, HOTKEY_HID_EPIN_ADDR, USBD_EP_TYPE_INTR, HOTKEY_HID_EPIN_SIZE);
                         memset(hHotkeyHID->transmitReportBuffer, 0, HOTKEY_HID_EPIN_SIZE);
                         USBD_LL_Transmit (pdev, HOTKEY_HID_EPIN_ADDR, hHotkeyHID->transmitReportBuffer, HOTKEY_HID_EPIN_SIZE); //put a null report in the output
@@ -299,9 +299,9 @@ uint8_t USBD_HOTKEY_HID_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 }
 
 uint8_t  USBD_HOTKEY_HID_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
-    /*uart_debug_addToBuffer("DataIn EP Num: ", 15);
-    uart_debug_printuint8(epnum);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("DataIn EP Num: ", 15);
+    UartDebug_printuint8(epnum);
+    UartDebug_newline();*/
     //why epnum comes through without its direction bit set i'm not sure
     //mask it off
 
@@ -330,7 +330,7 @@ uint8_t  USBD_HOTKEY_HID_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
 
 
 uint8_t  USBD_HOTKEY_HID_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum) {
-    uart_debug_sendline("Hotkey HID DataOut called. This should not happen.\n");
+    UartDebug_sendline("Hotkey HID DataOut called. This should not happen.\n");
     return USBD_OK;
 }
 

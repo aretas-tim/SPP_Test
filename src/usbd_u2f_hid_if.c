@@ -183,7 +183,7 @@ uint8_t U2F_HID_HandleContinuationPacket(U2FHID_FRAME* frame) {
                 default:
                     //this should have been caught at the init packet
 #ifdef DEBUG
-                    uart_debug_sendline("U2F HID received multi-packet message with unknown command. Aborting.\n");
+                    UartDebug_sendline("U2F HID received multi-packet message with unknown command. Aborting.\n");
 #endif /* DEBUG */
                     U2F_HID_SendErrorResponse(U2F_HID_ActiveChannelID, ERR_INVALID_CMD);
                     U2F_HID_ResetReceive();
@@ -282,9 +282,9 @@ uint8_t U2F_HID_HandleInitiationPacket(U2FHID_FRAME* frame) {
 static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
 
 #ifdef DEBUG_U2F
-    uart_debug_addToBuffer("U2F USB HID Received:\n", 22);
-    uart_debug_hexdump(report, USBD_U2F_HID_OUTREPORT_BUF_SIZE);
-    uart_debug_newline();
+    UartDebug_addToBuffer("U2F USB HID Received:\n", 22);
+    UartDebug_hexdump(report, USBD_U2F_HID_OUTREPORT_BUF_SIZE);
+    UartDebug_newline();
 #endif /* DEBUG_U2F */
 
 
@@ -295,7 +295,7 @@ static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
         //there's no specific error for "not a recognized cid" so.. other
         U2F_HID_SendErrorResponse(frame->cid, ERR_OTHER);
 #ifdef DEBUG
-        uart_debug_sendline("U2F HID Packed received on unallocated channel.\n");
+        UartDebug_sendline("U2F HID Packed received on unallocated channel.\n");
 #endif /* DEBUG */
     }
 
@@ -311,7 +311,7 @@ static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
                 U2F_HID_SendData(frame->cid, U2FHID_SYNC, NULL, 0);
             } else { //not a continuation, not a sync, must be an sequencing error
 #ifdef DEBUG
-                uart_debug_sendline("U2F HID Non-Sync Init packet received when cont packet expected.\n");
+                UartDebug_sendline("U2F HID Non-Sync Init packet received when cont packet expected.\n");
 #endif /* DEBUG */
                 //the client on the host should re-attempt the entire transmission
                 U2F_HID_InternalState = U2F_HID_TRANSMIT;
@@ -341,7 +341,7 @@ static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
                 U2F_HID_SendResponse(U2FHID_SYNC, NULL, 0);
             } else {
 #ifdef DEBUG
-                uart_debug_sendline("U2F HID Non-Sync Init packet received when no packet expected.\n");
+                UartDebug_sendline("U2F HID Non-Sync Init packet received when no packet expected.\n");
 #endif /* DEBUG */
                 //the client on the host should re-attempt the entire transmission
                 U2F_HID_InternalState = U2F_HID_TRANSMIT;
@@ -371,20 +371,20 @@ uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen)
 
     if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED ) {
 #ifdef DEBUG
-        uart_debug_sendline("Attempted to send U2F HID response while USB not configured.\n");
+        UartDebug_sendline("Attempted to send U2F HID response while USB not configured.\n");
 #endif /* DEBUG */
         return 0;
     }
     if(hhid->transmitState != HID_IDLE) {
 #ifdef DEBUG
-        uart_debug_sendline("Attempted to send U2F HID response while response already being transmitted.\n");
+        UartDebug_sendline("Attempted to send U2F HID response while response already being transmitted.\n");
 #endif /* DEBUG */
         return 0;
     }
     if((data == NULL) && (dataLen != 0)) {
         //NULL data and a dataLen of 0 is valid
 #ifdef DEBUG
-        uart_debug_sendline("U2F HID Response attempted with null data and non-zero dataLen.\n");
+        UartDebug_sendline("U2F HID Response attempted with null data and non-zero dataLen.\n");
 #endif /* DEBUG */
         return 0;
     }
@@ -411,8 +411,8 @@ uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen)
 
 
     U2F_HID_InternalState = U2F_HID_TRANSMIT;
-    //uart_debug_sendline("USB HID Sent:\n");
-    //uart_debug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
+    //UartDebug_sendline("USB HID Sent:\n");
+    //UartDebug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
     //if the immediate system is not transmitting, send. the dataIn function will take care of the rest.
     if(hhid->transmitImmediateState == HID_IDLE) {
         hhid->transmitState = HID_BUSY;
@@ -439,27 +439,27 @@ uint16_t U2F_HID_SendData(uint32_t channel, uint8_t response, uint8_t* data, uin
 #endif
     if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED ) {
 #ifdef DEBUG
-        uart_debug_sendline("Attempted to send U2F HID data while USB not configured.\n");
+        UartDebug_sendline("Attempted to send U2F HID data while USB not configured.\n");
 #endif /* DEBUG */
         return 0;
     }
     if((data == NULL) && (dataLen != 0)) {
         //NULL data and a dataLen of 0 is valid
 #ifdef DEBUG
-        uart_debug_sendline("U2F HID Data Send attempted with null data and non-zero dataLen.\n");
+        UartDebug_sendline("U2F HID Data Send attempted with null data and non-zero dataLen.\n");
 #endif /* DEBUG */
         return 0;
     }
     if(dataLen > U2F_HID_INIT_FRAME_DATA_LEN) {
         //as this is designed to send back quick channel busy and error responses, it doesn't handle multi-packet responses
 #ifdef DEBUG
-        uart_debug_sendline("U2F HID Data Send attempted with more than one packet of data.\n");
+        UartDebug_sendline("U2F HID Data Send attempted with more than one packet of data.\n");
 #endif /* DEBUG */
         return 0;
     }
     if(hhid->transmitImmediateState != HID_IDLE) {
 #ifdef DEBUG
-        uart_debug_sendline("U2F HID Data Send attempted while busy.\n");
+        UartDebug_sendline("U2F HID Data Send attempted while busy.\n");
 #endif /* DEBUG */
         return 0;
     }
@@ -493,9 +493,9 @@ uint16_t U2F_HID_SendData(uint32_t channel, uint8_t response, uint8_t* data, uin
 static void U2F_HID_ResponseTransmitComplete(void) {
 #ifdef DEBUG
     if(U2F_HID_InternalState != U2F_HID_TRANSMIT) {
-        uart_debug_sendline("U2F HID Transmit Complete called but not in transmit state.\n");
+        UartDebug_sendline("U2F HID Transmit Complete called but not in transmit state.\n");
     } else {
-        uart_debug_sendline("U2F HID Transmit Complete called.\n");
+        UartDebug_sendline("U2F HID Transmit Complete called.\n");
     }
 #endif /* DEBUG */
     U2F_HID_ResetReceive(); //call this for now

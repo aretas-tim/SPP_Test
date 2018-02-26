@@ -50,21 +50,21 @@ void TUNNEL_End(TransportTunnel* tunnel) {
 
 void TUNNEL_Dump(TransportTunnel* tunnel) {
 #ifdef DEBUG
-    uart_debug_sendline("Transport Tunnel Dump:\n");
-    uart_debug_sendline("Session Key:\n");
-    uart_debug_hexdump(tunnel->sessionKey, TUNNEL_SESSION_KEY_LENGTH);
-    uart_debug_sendline("Session Counter:\n");
-    uart_debug_hexdump(tunnel->sessionCounter, TUNNEL_COUNTER_LENGTH);
-    uart_debug_sendline("Even Nonce:\n");
-    uart_debug_hexdump(tunnel->nonceEven, TUNNEL_NONCE_LENGTH);
-    uart_debug_sendline("Odd Nonce:\n");
-    uart_debug_hexdump(tunnel->nonceOdd, TUNNEL_NONCE_LENGTH);
-    uart_debug_addToBuffer("Alive: ", 7);
-    uart_debug_printBool(tunnel->sessionAlive);
-    uart_debug_newline();
-    uart_debug_addToBuffer("Blocks Encrypted: ", 18);
-    uart_debug_printuint64(tunnel->blocksEncrypted);
-    uart_debug_newline();
+    UartDebug_sendline("Transport Tunnel Dump:\n");
+    UartDebug_sendline("Session Key:\n");
+    UartDebug_hexdump(tunnel->sessionKey, TUNNEL_SESSION_KEY_LENGTH);
+    UartDebug_sendline("Session Counter:\n");
+    UartDebug_hexdump(tunnel->sessionCounter, TUNNEL_COUNTER_LENGTH);
+    UartDebug_sendline("Even Nonce:\n");
+    UartDebug_hexdump(tunnel->nonceEven, TUNNEL_NONCE_LENGTH);
+    UartDebug_sendline("Odd Nonce:\n");
+    UartDebug_hexdump(tunnel->nonceOdd, TUNNEL_NONCE_LENGTH);
+    UartDebug_addToBuffer("Alive: ", 7);
+    UartDebug_printBool(tunnel->sessionAlive);
+    UartDebug_newline();
+    UartDebug_addToBuffer("Blocks Encrypted: ", 18);
+    UartDebug_printuint64(tunnel->blocksEncrypted);
+    UartDebug_newline();
 #endif /* DEBUG */
 }
 
@@ -147,10 +147,10 @@ int32_t TUNNEL_ORD_InitHandler(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff
 }
 
 uint32_t TUNNEL_DeriveSessionKey(uint8_t* derivedKey, uint8_t* derivedCounter, uint8_t* salt, uint32_t saltLen, uint8_t* otc, uint32_t otcLen) {
-    uart_debug_sendline("OTC and Salt:\n");
-    uart_debug_hexdump(otc, otcLen);
-    uart_debug_hexdump(salt, saltLen);
-    uart_debug_newline();
+    UartDebug_sendline("OTC and Salt:\n");
+    UartDebug_hexdump(otc, otcLen);
+    UartDebug_hexdump(salt, saltLen);
+    UartDebug_newline();
     size_t combinedDataLen = TRANSPORT_KEY_LEN + TUNNEL_COUNTER_LENGTH;
     uint8_t combinedData[combinedDataLen];
     size_t hashedOTCLen = 32;
@@ -164,11 +164,11 @@ uint32_t TUNNEL_DeriveSessionKey(uint8_t* derivedKey, uint8_t* derivedCounter, u
     mbedtls_pkcs5_pbkdf2_hmac(&ctx, hashedOTC, hashedOTCLen, salt, saltLen, *BACKUP_REGS_TUNNEL_ITERS_REG, combinedDataLen, combinedData);
     //TIM2->CR1 &= ~(0x0001); //stop timer 2
 
-    uart_debug_hexdump(combinedData, combinedDataLen);
-    uart_debug_newline();
-    //uart_debug_addToBuffer("Derivation Cycles: ", 19);
-    //uart_debug_printuint32(TIM2->CNT);
-    //uart_debug_newline();
+    UartDebug_hexdump(combinedData, combinedDataLen);
+    UartDebug_newline();
+    //UartDebug_addToBuffer("Derivation Cycles: ", 19);
+    //UartDebug_printuint32(TIM2->CNT);
+    //UartDebug_newline();
     mbedtls_md_free(&ctx);
 
     memcpy(derivedKey, combinedData, TRANSPORT_KEY_LEN);
@@ -302,15 +302,15 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
         mbedtls_sha256_init(&digestCtx);
         mbedtls_sha256_starts(&digestCtx, false);
         mbedtls_sha256_update(&digestCtx, temp, SIZE_OF_UINT32); //response Code, already in temp
-        uart_debug_sendline("Tunnel Digest Parameters:\n");
-        uart_debug_hexdump(temp, SIZE_OF_UINT32);
+        UartDebug_sendline("Tunnel Digest Parameters:\n");
+        UartDebug_hexdump(temp, SIZE_OF_UINT32);
         //.. twice
         Utilities_packToBuffer32(temp, 0, commandCode);
         mbedtls_sha256_update(&digestCtx, temp, SIZE_OF_UINT32); //command Code (included in the digest but not part of the return parameters)
-        uart_debug_hexdump(temp, SIZE_OF_UINT32);
+        UartDebug_hexdump(temp, SIZE_OF_UINT32);
 
         mbedtls_sha256_update(&digestCtx, buff->params, buff->paramHead); //parameters
-        uart_debug_hexdump(buff->params, buff->paramHead);
+        UartDebug_hexdump(buff->params, buff->paramHead);
 
         uint8_t digest[TUNNEL_HASH_LENGTH]; /* temp buffer for the digest */
         mbedtls_sha256_finish(&digestCtx, digest);
@@ -336,45 +336,45 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
         fifoHead += TUNNEL_HMAC_LENGTH; // update this
 
         buff->hasAuth = 1;
-        //uart_debug_addToBuffer("HMAC RC: ", 9);
-        //uart_debug_printuint32(rc);
-        //uart_debug_newline();
-        uart_debug_sendline("Digest:\n");
-        uart_debug_hexdump(digest, TUNNEL_HASH_LENGTH);
-        uart_debug_sendline("Even Nonce:\n");
-        uart_debug_hexdump(tunnel->nonceEven, TUNNEL_NONCE_LENGTH);
-        uart_debug_sendline("Odd Nonce:\n");
-        uart_debug_hexdump(tunnel->nonceOdd, TUNNEL_NONCE_LENGTH);
-        uart_debug_sendline("HMAC:\n");
-        uart_debug_hexdump(fifo + (fifoHead - TUNNEL_HMAC_LENGTH), TUNNEL_HMAC_LENGTH);
+        //UartDebug_addToBuffer("HMAC RC: ", 9);
+        //UartDebug_printuint32(rc);
+        //UartDebug_newline();
+        UartDebug_sendline("Digest:\n");
+        UartDebug_hexdump(digest, TUNNEL_HASH_LENGTH);
+        UartDebug_sendline("Even Nonce:\n");
+        UartDebug_hexdump(tunnel->nonceEven, TUNNEL_NONCE_LENGTH);
+        UartDebug_sendline("Odd Nonce:\n");
+        UartDebug_hexdump(tunnel->nonceOdd, TUNNEL_NONCE_LENGTH);
+        UartDebug_sendline("HMAC:\n");
+        UartDebug_hexdump(fifo + (fifoHead - TUNNEL_HMAC_LENGTH), TUNNEL_HMAC_LENGTH);
 
 
         //TUNNEL_BufferExtend(&tunnelBuffer, buff->authSection, TUNNEL_LEN_RSP_ENC, FALSE); /* copy this to our parameter buffer so its all in one place*/
         //TUNNEL_BufferCalcLength(buff);
-        //uart_debug_sendline("Clear Response Dump:\n");
-        //uart_debug_hexdump(buff->params, buff->paramHead);
+        //UartDebug_sendline("Clear Response Dump:\n");
+        //UartDebug_hexdump(buff->params, buff->paramHead);
         //TUNNEL_BufferMakeAuthSection(tunnel, buff);
 
 
         TUNNEL_AES_CTR_CryptInPlace(tunnel, fifo + TUNNEL_CMD_ENC_HEADER_LEN, fifoHead - TUNNEL_CMD_ENC_HEADER_LEN); //encrypt things
     } //else {
         //TUNNEL_BufferCalcLength(buff);
-        //uart_debug_sendline("Clear Response Dump:\n");
-        //uart_debug_hexdump(buff->params, buff->paramHead);
+        //UartDebug_sendline("Clear Response Dump:\n");
+        //UartDebug_hexdump(buff->params, buff->paramHead);
     //}
     //TUNNEL_BufferCalcLength(buff);
     //uart_comm_addToBuffer(fifo, fifoHead);
     if(tunnel->sendFunc == NULL) {
-        uart_debug_sendline("Null pointer for tunnel send!\n");
+        UartDebug_sendline("Null pointer for tunnel send!\n");
     } else {
         uint16_t rsp = tunnel->sendFunc(fifo, fifoHead);
-        uart_debug_addToBuffer("USB Transmitted Bytes: ", 23);
-        uart_debug_printuint8(rsp);
-        uart_debug_newline();
+        UartDebug_addToBuffer("USB Transmitted Bytes: ", 23);
+        UartDebug_printuint8(rsp);
+        UartDebug_newline();
     }
     if(buff->hasAuth) {
-        //uart_debug_sendline("Encrypted Response Dump:\n");
-        //uart_debug_hexdump(buff->params, buff->paramHead);
+        //UartDebug_sendline("Encrypted Response Dump:\n");
+        //UartDebug_hexdump(buff->params, buff->paramHead);
     }
     TUNNEL_BufferFree(buff);
     return;
@@ -415,7 +415,7 @@ size_t TUNNEL_BufferExtend(TUNNEL_BUFFER_CTX* buff, uint8_t* in, size_t len) {
     if(SRAM2_TUNNEL_COMMAND_BUFF_LEN < (buff->paramHead + len)) {
         len = SRAM2_TUNNEL_COMMAND_BUFF_LEN - buff->paramHead; //prevent buffer overflow
 #ifdef DEBUG
-        uart_debug_sendline("Tunnel Buffer has overflowed!\n");
+        UartDebug_sendline("Tunnel Buffer has overflowed!\n");
 #endif /* DEBUG */
     }
     memcpy(buff->params + buff->paramHead, in, len);
@@ -504,9 +504,9 @@ int32_t TUNNEL_BufferExtractStructure(TUNNEL_BUFFER_CTX* buff, int32_t (*extract
     }  /* sorry for the ugly formatting, only way to surround it in preprocessor directives to eliminate the else */
 #ifdef DEBUG
     else {
-        uart_debug_addToBuffer("Structure Extraction Error: ", 28);
-        uart_debug_hexprint32(extractedLen);
-        uart_debug_newline();
+        UartDebug_addToBuffer("Structure Extraction Error: ", 28);
+        UartDebug_hexprint32(extractedLen);
+        UartDebug_newline();
     }
 #endif /* DEBUG */
     return extractedLen;
@@ -546,17 +546,17 @@ int32_t TUNNEL_MakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff)
 
     //int rc = mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), tunnel->sessionKey, TUNNEL_SESSION_KEY_LENGTH, hmacBuff, (TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH * 2), buff->authSection + TUNNEL_NONCE_LENGTH);
     buff->hasAuth = 1;
-    //uart_debug_addToBuffer("HMAC RC: ", 9);
-    //uart_debug_printuint32(rc);
-    //uart_debug_newline();
-    /*uart_debug_sendline("Digest:\n");
-    uart_debug_hexdump(hmacBuff, TUNNEL_HASH_LENGTH);
-    uart_debug_sendline("Even Nonce:\n");
-    uart_debug_hexdump(hmacBuff + TUNNEL_HASH_LENGTH, TUNNEL_NONCE_LENGTH);
-    uart_debug_sendline("Odd Nonce:\n");
-    uart_debug_hexdump(hmacBuff + TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH, TUNNEL_NONCE_LENGTH);
-    uart_debug_sendline("HMAC:\n");
-    uart_debug_hexdump(buff->authSection + TUNNEL_NONCE_LENGTH, TUNNEL_HMAC_LENGTH);*/
+    //UartDebug_addToBuffer("HMAC RC: ", 9);
+    //UartDebug_printuint32(rc);
+    //UartDebug_newline();
+    /*UartDebug_sendline("Digest:\n");
+    UartDebug_hexdump(hmacBuff, TUNNEL_HASH_LENGTH);
+    UartDebug_sendline("Even Nonce:\n");
+    UartDebug_hexdump(hmacBuff + TUNNEL_HASH_LENGTH, TUNNEL_NONCE_LENGTH);
+    UartDebug_sendline("Odd Nonce:\n");
+    UartDebug_hexdump(hmacBuff + TUNNEL_HASH_LENGTH + TUNNEL_NONCE_LENGTH, TUNNEL_NONCE_LENGTH);
+    UartDebug_sendline("HMAC:\n");
+    UartDebug_hexdump(buff->authSection + TUNNEL_NONCE_LENGTH, TUNNEL_HMAC_LENGTH);*/
     return 0;
 }
 
@@ -675,8 +675,8 @@ uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* c
 
     uint8_t spaceAuthData[digestSize];
     memset(spaceAuthData, 0, digestSize); //TPM ignores this as its owner-authorized space, always
-    //uart_debug_sendline("Owner AuthData:\n");
-    //uart_debug_hexdump(authDataStore->ownerAuthData, digestSize);
+    //UartDebug_sendline("Owner AuthData:\n");
+    //UartDebug_hexdump(authDataStore->ownerAuthData, digestSize);
     AuthSession localOSAPSession;
     TPM_AuthSessionInit(&localOSAPSession);
     int32_t tpm_rc = TPM_GetOSAPSession_Owner(hi2c, &localOSAPSession, TPM_ET_AES128_CTR, authDataStore->ownerAuthData);
@@ -707,8 +707,8 @@ uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cb
     if(TPM_SUCCESS != tpm_rc) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_TPM_CODE | tpm_rc);
     }
-    //uart_debug_sendline("Response from TPM:\n");
-    //uart_debug_hexdump(capResp, capRespSize);
+    //UartDebug_sendline("Response from TPM:\n");
+    //UartDebug_hexdump(capResp, capRespSize);
     TUNNEL_BufferInit(&tunnelBuffer);
     TUNNEL_BufferExtend32(&tunnelBuffer, capRespSize);
     TUNNEL_BufferExtend(&tunnelBuffer, capResp, capRespSize);
@@ -803,16 +803,16 @@ uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I
     uint32_t offset = TUNNEL_BufferExtract32(cbuff);
     size_t dataLen = TUNNEL_BufferExtract32(cbuff);
     uint8_t* data = malloc(sizeof(uint8_t) * dataLen); //not sure how to easily avoid dynamic memory here. @TODO think harder next time. command temp buff?
-    //uart_debug_hexprint32(dataLen);
-    //uart_debug_newline();
+    //UartDebug_hexprint32(dataLen);
+    //UartDebug_newline();
     if(NULL == data) {
         TUNNEL_SendShortEnc(tunnel, cbuff->command, TUNNEL_RSP_OUT_OF_MEMORY);
         return TUNNEL_RSP_OUT_OF_MEMORY;
     }
     int32_t tpm_rc = TPM_NV_ReadValue(hi2c, as, authDataStore->ownerAuthData, idx, offset, &dataLen, data);
     TPM_SetCommandReadyAndWait(hi2c, 1000);
-    //uart_debug_hexprint32(dataLen);
-    //uart_debug_newline();
+    //UartDebug_hexprint32(dataLen);
+    //UartDebug_newline();
     if(TPM_SUCCESS != tpm_rc) {
         TUNNEL_SendShortEnc(tunnel, cbuff->command, TUNNEL_RSP_TPM_CODE | tpm_rc);
         free(data);
@@ -1374,18 +1374,18 @@ uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
         uint32_t vrefintCounts = Adc_getVRefInt(&hadc);
         uint32_t pcieCounts = Adc_getPCIE12VSense(&hadc);
         uint32_t vbusCounts = Adc_getVBus(&hadc); //@TODO massage vbus appropriately
-        /*uart_debug_addToBuffer("VBus Counts: ", 13);
-        uart_debug_printuint32(vbusCounts);
-        uart_debug_newline();
-        uart_debug_addToBuffer("VRefInt Counts: ", 16);
-        uart_debug_printuint32(vrefintCounts);
-        uart_debug_newline();
-        uart_debug_addToBuffer("VPCI-E Counts: ", 15);
-        uart_debug_printuint32(pcieCounts);
-        uart_debug_newline();
-        uart_debug_addToBuffer("VBat Counts: ", 13);
-        uart_debug_printuint32(vbatCounts);
-        uart_debug_newline();*/
+        /*UartDebug_addToBuffer("VBus Counts: ", 13);
+        UartDebug_printuint32(vbusCounts);
+        UartDebug_newline();
+        UartDebug_addToBuffer("VRefInt Counts: ", 16);
+        UartDebug_printuint32(vrefintCounts);
+        UartDebug_newline();
+        UartDebug_addToBuffer("VPCI-E Counts: ", 15);
+        UartDebug_printuint32(pcieCounts);
+        UartDebug_newline();
+        UartDebug_addToBuffer("VBat Counts: ", 13);
+        UartDebug_printuint32(vbatCounts);
+        UartDebug_newline();*/
 
 
 

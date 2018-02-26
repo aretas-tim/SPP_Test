@@ -27,7 +27,7 @@ void SpiFlash_select(void) {
     if(SpiFlash_currentPort != NULL) {
         HAL_GPIO_WritePin(SpiFlash_currentPort, SpiFlash_currentPin, RESET);
     } else {
-        uart_debug_sendline("SPI Flash Selected but port is null.\n");
+        UartDebug_sendline("SPI Flash Selected but port is null.\n");
     }
 }
 
@@ -118,11 +118,11 @@ uint8_t SpiFlash_readStatusRegister(SPI_HandleTypeDef* hspi, uint8_t statusReg) 
     }
     HAL_StatusTypeDef rc = HAL_SPI_TransmitReceive(hspi, outBuff, inBuff, cmdLen, 1000);
     SpiFlash_deselect();
-    /*uart_debug_addToBuffer("SPI Flash Status Register ", 26);
-    uart_debug_printuint8(statusReg);
-    uart_debug_addToBuffer(": ", 2);
-    uart_debug_hexprint16(inBuff[1]);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("SPI Flash Status Register ", 26);
+    UartDebug_printuint8(statusReg);
+    UartDebug_addToBuffer(": ", 2);
+    UartDebug_hexprint16(inBuff[1]);
+    UartDebug_newline();*/
     if(HAL_OK == rc) {
         return inBuff[1];
     }
@@ -153,9 +153,9 @@ uint8_t SpiFlash_readStatusRegisterInterrupt(SPI_HandleTypeDef* hspi, uint8_t st
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, &cmd, cmdLen, 100); //send command
     if(HAL_OK != rc) {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read SR IT Returned at Header: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read SR IT Returned at Header: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         SpiFlash_deselect();
         return 0x1; //BUSY, write disabled
@@ -170,9 +170,9 @@ uint8_t SpiFlash_readStatusRegisterInterrupt(SPI_HandleTypeDef* hspi, uint8_t st
         return rsp;
     } else {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read SR IT Returned at Data: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read SR IT Returned at Data: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         return 0x1;
     }
@@ -219,9 +219,9 @@ uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t le
     HAL_SPIEx_FlushRxFifo(hspi);
     if(HAL_OK != rc) {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read Data Returned at Header: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read Data Returned at Header: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         SpiFlash_deselect();
         return 0; //no data read
@@ -233,9 +233,9 @@ uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t le
         return len;
     } else {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read Data Returned at Data: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read Data Returned at Data: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         return 0;
     }
@@ -257,9 +257,9 @@ uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef* hspi, uint8_t* inBuff, ui
     HAL_SPIEx_FlushRxFifo(hspi);
     if(HAL_OK != rc) {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read Data Returned at Header: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read Data Returned at Header: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         SpiFlash_deselect();
         return 0; //no data read
@@ -273,9 +273,9 @@ uint16_t SpiFlash_readDataInterrupt(SPI_HandleTypeDef* hspi, uint8_t* inBuff, ui
         return len;
     } else {
 #ifdef DEBUG
-        uart_debug_sendstring("SPI Flash Read Data Returned at Data: ");
-        uart_debug_hexprint32(rc);
-        uart_debug_newline();
+        UartDebug_sendString("SPI Flash Read Data Returned at Data: ");
+        UartDebug_hexprint32(rc);
+        UartDebug_newline();
 #endif
         return 0;
     }
@@ -327,7 +327,7 @@ uint32_t SpiFlash_write(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint32_t len,
     uint32_t rcPrim;
     do {
         if(!SpiFlash_writeEnableAndWait(hspi, SPI_FLASH_WRITE_ENABLE_TIMEOUT)) {
-            uart_debug_sendline("Unable to enable write for page program.\n");
+            UartDebug_sendline("Unable to enable write for page program.\n");
             errorCount++;
             rcPrim = 0;
         } else {
@@ -336,14 +336,14 @@ uint32_t SpiFlash_write(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint32_t len,
             SpiFlash_readSR1UntilNotBusy(hspi);
             if(rcPrim != thisPageBytes) {
                 errorCount++;
-                uart_debug_sendline("Error in page program.\n");
+                UartDebug_sendline("Error in page program.\n");
             }
 
-            uart_debug_sendstring("Wrote ");
-            uart_debug_printuint32(thisPageBytes);
-            uart_debug_sendstring(" bytes at location ");
-            uart_debug_printuint32(startAddress + addressOffset);
-            uart_debug_sendstring(".\n");
+            UartDebug_sendString("Wrote ");
+            UartDebug_printuint32(thisPageBytes);
+            UartDebug_sendString(" bytes at location ");
+            UartDebug_printuint32(startAddress + addressOffset);
+            UartDebug_sendString(".\n");
             bytesToWrite -= thisPageBytes;
             addressOffset += thisPageBytes;
             thisPageBytes = bytesToWrite;
@@ -385,11 +385,11 @@ bool SpiFlash_readSR1UntilWriteEnabled(SPI_HandleTypeDef* hspi) {
         }
     }
     SpiFlash_deselect();
-    /*uart_debug_addToBuffer("SPI Flash Status Register ", 26);
-    uart_debug_printuint8(statusReg);
-    uart_debug_addToBuffer(": ", 2);
-    uart_debug_hexprint16(inBuff[1]);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("SPI Flash Status Register ", 26);
+    UartDebug_printuint8(statusReg);
+    UartDebug_addToBuffer(": ", 2);
+    UartDebug_hexprint16(inBuff[1]);
+    UartDebug_newline();*/
 
     return true;
 }
@@ -419,22 +419,22 @@ bool SpiFlash_readSR1UntilNotBusy(SPI_HandleTypeDef* hspi) {
     while(((inBuff[1] & SPI_FLASH_STS_1_BUSY) == SPI_FLASH_STS_1_BUSY) || ((inBuff[1] & SPI_FLASH_STS_1_WEL) == SPI_FLASH_STS_1_WEL)) {
         HAL_SPIEx_FlushRxFifo(hspi); //so many buffer flushes
         rc = HAL_SPI_Receive(hspi, inBuff + 1, 1, 100); //read a futher byte
-        //uart_debug_putchar('.');
+        //UartDebug_putchar('.');
         if(HAL_OK != rc) {
             SpiFlash_deselect();
             return false;
         }
         /*if((++iterCount & 0x3FF) == 0) {
-            uart_debug_hexprint16(inBuff[1]);
-            uart_debug_newline();
+            UartDebug_hexprint16(inBuff[1]);
+            UartDebug_newline();
         }*/
     }
     SpiFlash_deselect();
-    /*uart_debug_addToBuffer("SPI Flash Status Register ", 26);
-    uart_debug_printuint8(statusReg);
-    uart_debug_addToBuffer(": ", 2);
-    uart_debug_hexprint16(inBuff[1]);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("SPI Flash Status Register ", 26);
+    UartDebug_printuint8(statusReg);
+    UartDebug_addToBuffer(": ", 2);
+    UartDebug_hexprint16(inBuff[1]);
+    UartDebug_newline();*/
 
     return true;
 }
@@ -447,7 +447,7 @@ bool SpiFlash_readSR1UntilNotBusy(SPI_HandleTypeDef* hspi) {
 bool SpiFlash_eraseChip(SPI_HandleTypeDef* hspi) {
     if(!SpiFlash_writeEnableAndWait(hspi, SPI_FLASH_WRITE_ENABLE_TIMEOUT)) {
 #ifdef DEBUG
-        uart_debug_sendline("Unable to enable write for chip erase.\n");
+        UartDebug_sendline("Unable to enable write for chip erase.\n");
 #endif /* DEBG */
         return false;
     }
@@ -466,12 +466,12 @@ bool SpiFlash_eraseChip(SPI_HandleTypeDef* hspi) {
  */
 uint8_t SpiFlash_writeEnableAndWait(SPI_HandleTypeDef* hspi, uint32_t timeout) {
     if(!SpiFlash_writeEnable(hspi)) { //as success is 0..
-        //uart_debug_sendline("Waiting for WEL bit...\n");
+        //UartDebug_sendline("Waiting for WEL bit...\n");
 
         return SpiFlash_readSR1UntilWriteEnabled(hspi);
-        //uart_debug_sendline("Timeout waiting for WEL bit.\n");
+        //UartDebug_sendline("Timeout waiting for WEL bit.\n");
     }
-    //uart_debug_sendline("WEL bit not set.\n");
+    //UartDebug_sendline("WEL bit not set.\n");
     return false; //timed out or error on write enable
 }
 
@@ -483,10 +483,10 @@ uint8_t SpiFlash_writeEnable(SPI_HandleTypeDef* hspi) {
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, outBuff, cmdLen, 1000);
     SpiFlash_deselect();
     if(HAL_OK == rc) {
-        //uart_debug_sendline("Write Enable returning success (0).\n");
+        //UartDebug_sendline("Write Enable returning success (0).\n");
         return 0;
     } else {
-        //uart_debug_sendline("Write Enable returning failure (1).\n");
+        //UartDebug_sendline("Write Enable returning failure (1).\n");
         return 1;
     }
 }
@@ -524,7 +524,7 @@ uint8_t SpiFlash_readSFDP(SPI_HandleTypeDef* hspi, uint8_t* data, size_t maxLen,
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, cmdOutBuff, cmdLen, 1000); //send command and address
     if(HAL_OK != rc) {
         SpiFlash_deselect();
-        uart_debug_sendline("HAL Failure on SPI transmit.\n");
+        UartDebug_sendline("HAL Failure on SPI transmit.\n");
         return 0; //no data read
     }
     uint16_t dummy = 0;
@@ -537,7 +537,7 @@ uint8_t SpiFlash_readSFDP(SPI_HandleTypeDef* hspi, uint8_t* data, size_t maxLen,
 
         return maxLen;
     } else {
-        uart_debug_sendline("HAL Failure on SPI receive.\n");
+        UartDebug_sendline("HAL Failure on SPI receive.\n");
         return 0;
     }
 }
@@ -564,9 +564,9 @@ void SpiFlash_hexDumpFlash(SPI_HandleTypeDef* hspi, uint32_t start, uint32_t len
         uint16_t rc = SpiFlash_readData(hspi, pageBuffer, thisPageLen, dumpStart + bytesDumped);
         if(rc) {
             for(uint32_t i = 0; i < (thisPageLen / lineLen); ++i) {
-                uart_debug_hexprint32(dumpStart + bytesDumped + lineLen * i);
-                uart_debug_sendstring(": ");
-                uart_debug_hexdump(pageBuffer + lineLen * i, lineLen);
+                UartDebug_hexprint32(dumpStart + bytesDumped + lineLen * i);
+                UartDebug_sendString(": ");
+                UartDebug_hexdump(pageBuffer + lineLen * i, lineLen);
             }
         }
         bytesDumped += thisPageLen;
@@ -596,9 +596,9 @@ void SpiFlash_hexDumpFlashInterrupt(SPI_HandleTypeDef* hspi, uint32_t start, uin
         uint16_t rc = SpiFlash_readDataInterrupt(hspi, pageBuffer, thisPageLen, dumpStart + bytesDumped);
         if(rc == thisPageLen) {
             for(uint32_t i = 0; i < (thisPageLen / lineLen); ++i) {
-                uart_debug_hexprint32(dumpStart + bytesDumped + lineLen * i);
-                uart_debug_sendstring(": ");
-                uart_debug_hexdump(pageBuffer + lineLen * i, lineLen);
+                UartDebug_hexprint32(dumpStart + bytesDumped + lineLen * i);
+                UartDebug_sendString(": ");
+                UartDebug_hexdump(pageBuffer + lineLen * i, lineLen);
             }
         } else if(rc) {
             uint32_t errorPageLen = rc;
@@ -606,9 +606,9 @@ void SpiFlash_hexDumpFlashInterrupt(SPI_HandleTypeDef* hspi, uint32_t start, uin
                 errorPageLen = (errorPageLen + 16) & 0xFFFFFFF0; //crude end alignment, add 16 and mask off the LSbits
             }
             for(uint32_t i = 0; i < (errorPageLen / lineLen); ++i) {
-                uart_debug_hexprint32(dumpStart + bytesDumped + lineLen * i);
-                uart_debug_sendstring("! ");
-                uart_debug_hexdump(pageBuffer + lineLen * i, lineLen);
+                UartDebug_hexprint32(dumpStart + bytesDumped + lineLen * i);
+                UartDebug_sendString("! ");
+                UartDebug_hexdump(pageBuffer + lineLen * i, lineLen);
             }
         }
         bytesDumped += thisPageLen;
@@ -619,6 +619,6 @@ void SpiFlash_hexDumpFlashInterrupt(SPI_HandleTypeDef* hspi, uint32_t start, uin
 void SpiFlash_interruptRxComplete(SPI_HandleTypeDef* hspi) {
     (void*) hspi; //suppress unused parameter warning
     SpiFlash_interruptRxCompleteFlag = true;
-    uart_debug_sendline("SPI Flash Rx Complete Interrupt!\n"); //2017-09-07 this is apparently a critical part of the code. doesn't seem to want to work without it. *sigh*
+    UartDebug_sendline("SPI Flash Rx Complete Interrupt!\n"); //2017-09-07 this is apparently a critical part of the code. doesn't seem to want to work without it. *sigh*
 }
 

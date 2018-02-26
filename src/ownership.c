@@ -25,7 +25,7 @@ Ownership_PinUpdateInfo Ownership_pinUpdateInfo = {false, 0, 0}; /* holds info t
 void Ownership_Init(void (*clearFunc)(void)) {
     Ownership_hasBeenUnlocked = false;
     if(clearFunc == NULL) {
-        uart_debug_sendline("Ownership Clear Callback cannot be NULL. Entering Infinite Loop.\n");
+        UartDebug_sendline("Ownership Clear Callback cannot be NULL. Entering Infinite Loop.\n");
         while(true);
     }
     Ownership_clearFunc = clearFunc;
@@ -60,8 +60,8 @@ bool Ownership_isOwned(void) {
  * param storageKey output: the storage key, valid if the return value is 0
  */
 uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uint8_t storageKey[OWNERSHIP_KEY_LEN]) {
-    //uart_debug_hexdump(salt, saltLen);
-    //uart_debug_newline();
+    //UartDebug_hexdump(salt, saltLen);
+    //UartDebug_newline();
     size_t combinedDataLen = OWNERSHIP_PIN_HASH_LEN + OWNERSHIP_KEY_LEN;
     uint8_t combinedData[combinedDataLen];
     uint8_t hashedPIN[PIN_HASH_LEN]; //@TODO move these in to a quick malloc?
@@ -99,11 +99,11 @@ uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_
     mbedtls_pkcs5_pbkdf2_hmac(&ctx, hashedPIN, PIN_HASH_LEN, salt, saltLen, *BACKUP_REGS_UNLOCK_ITERS_REG, combinedDataLen, combinedData);
 
 
-    uart_debug_hexdump(combinedData, combinedDataLen);
-    uart_debug_newline();
-    //uart_debug_addToBuffer("Derivation Cycles: ", 19);
-    //uart_debug_printuint32(TIM2->CNT);
-    //uart_debug_newline();
+    UartDebug_hexdump(combinedData, combinedDataLen);
+    UartDebug_newline();
+    //UartDebug_addToBuffer("Derivation Cycles: ", 19);
+    //UartDebug_printuint32(TIM2->CNT);
+    //UartDebug_newline();
     mbedtls_md_free(&ctx);
 
     uint8_t* ownerAuthentication = combinedData;
@@ -146,10 +146,10 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
     }
 #ifdef DEBUG_TIME_UNLOCK
     //__disable_irq();
-    /*uart_debug_hexprint32(RTC->TR);
-    uart_debug_newline();
-    uart_debug_hexprint32(RTC->SSR);
-    uart_debug_newline();*/
+    /*UartDebug_hexprint32(RTC->TR);
+    UartDebug_newline();
+    UartDebug_hexprint32(RTC->SSR);
+    UartDebug_newline();*/
     uint32_t timer2KDFStart, timer2KDFEnd, timer2MatchEnd, timer2UnlockEnd;
     TIM2->CNT = 0x0; //reinitialize timer2
     TIM2->CR1 |= 0x0001; //start timer 2
@@ -175,8 +175,8 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
     timer2KDFEnd = TIM2->CNT;
 #endif /* DEBUG_TIME_UNLOCK */
 #ifdef DEBUG
-    uart_debug_hexdump(combinedData, combinedDataLen);
-    uart_debug_newline();
+    UartDebug_hexdump(combinedData, combinedDataLen);
+    UartDebug_newline();
 #endif /* DEBUG */
     uint8_t* ownerAuthentication = combinedData;
     uint8_t* keyEncryptingKey = combinedData + OWNERSHIP_PIN_HASH_LEN;
@@ -213,20 +213,20 @@ bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t sa
     TIM2->CR1 &= ~(0x0001); //stop timer 2
     //__enable_irq();
     timer2UnlockEnd = TIM2->CNT;
-    /*uart_debug_hexprint32(RTC->TR);
-    uart_debug_newline();
-    uart_debug_hexprint32(RTC->SSR);
-    uart_debug_newline(); */
-    uart_debug_sendline("Unlock Timing (in clocks):\n");
-    uart_debug_addToBuffer("KDF Start: ", 11);
-    uart_debug_printuint32(timer2KDFStart);
-    uart_debug_addToBuffer("\nKDF End: ", 10);
-    uart_debug_printuint32(timer2KDFEnd);
-    uart_debug_addToBuffer("\nMatch End: ", 12);
-    uart_debug_printuint32(timer2MatchEnd);
-    uart_debug_addToBuffer("\nUnlock End: ", 13);
-    uart_debug_printuint32(timer2UnlockEnd);
-    uart_debug_newline();
+    /*UartDebug_hexprint32(RTC->TR);
+    UartDebug_newline();
+    UartDebug_hexprint32(RTC->SSR);
+    UartDebug_newline(); */
+    UartDebug_sendline("Unlock Timing (in clocks):\n");
+    UartDebug_addToBuffer("KDF Start: ", 11);
+    UartDebug_printuint32(timer2KDFStart);
+    UartDebug_addToBuffer("\nKDF End: ", 10);
+    UartDebug_printuint32(timer2KDFEnd);
+    UartDebug_addToBuffer("\nMatch End: ", 12);
+    UartDebug_printuint32(timer2MatchEnd);
+    UartDebug_addToBuffer("\nUnlock End: ", 13);
+    UartDebug_printuint32(timer2UnlockEnd);
+    UartDebug_newline();
 #endif /* DEBUG_TIME_UNLOCK*/
 
     return match;

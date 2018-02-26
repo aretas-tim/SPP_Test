@@ -17,8 +17,8 @@ void BackupRegs_clear(void) {
 #ifdef DEBUG
 void BackupRegs_dump(void) {
     for(int i = 0; i < BACKUP_REGS_COUNT; ++i) {
-            uart_debug_hexprint32(*(BACKUP_REGS_BASE + i));
-            uart_debug_newline();
+            UartDebug_hexprint32(*(BACKUP_REGS_BASE + i));
+            UartDebug_newline();
     }
 }
 #endif /*DEBUG*/

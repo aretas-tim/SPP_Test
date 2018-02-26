@@ -164,13 +164,13 @@ int8_t STORAGE_Read (uint8_t lun,
                  uint32_t blk_addr,                       
                  uint16_t blk_len)
 {
-    /*uart_debug_addToBuffer("MSC Storage Read (", 18);
-    uart_debug_printuint8(lun);
-    uart_debug_addToBuffer(", ", 2);
-    uart_debug_hexprint32(blk_addr);
-    uart_debug_addToBuffer(", ", 2);
-    uart_debug_hexprint32(blk_len);
-    uart_debug_addToBuffer(")\n", 2);*/
+    /*UartDebug_addToBuffer("MSC Storage Read (", 18);
+    UartDebug_printuint8(lun);
+    UartDebug_addToBuffer(", ", 2);
+    UartDebug_hexprint32(blk_addr);
+    UartDebug_addToBuffer(", ", 2);
+    UartDebug_hexprint32(blk_len);
+    UartDebug_addToBuffer(")\n", 2);*/
     uint16_t readLen = blk_len * STORAGE_BLK_SIZ;
     STORAGE_ChipSelect();
     uint16_t rv = SpiFlash_readData(&hspi_ms, buf, readLen, blk_addr << 12);
@@ -178,7 +178,7 @@ int8_t STORAGE_Read (uint8_t lun,
     if(rv == readLen) {
         return 0;
     } else {
-        uart_debug_sendline("Error reading sector.\n");
+        UartDebug_sendline("Error reading sector.\n");
         return 1;
     }
 }
@@ -194,24 +194,24 @@ int8_t STORAGE_Write (uint8_t lun,
                   uint32_t blk_addr,
                   uint16_t blk_len)
 {
-    /*uart_debug_addToBuffer("MSC Storage Write (", 19);
-    uart_debug_printuint8(lun);
-    uart_debug_addToBuffer(", ", 2);
-    uart_debug_hexprint32(blk_addr);
-    uart_debug_addToBuffer(", ", 2);
-    uart_debug_hexprint32(blk_len);
-    uart_debug_addToBuffer(")\n", 2);*/
+    /*UartDebug_addToBuffer("MSC Storage Write (", 19);
+    UartDebug_printuint8(lun);
+    UartDebug_addToBuffer(", ", 2);
+    UartDebug_hexprint32(blk_addr);
+    UartDebug_addToBuffer(", ", 2);
+    UartDebug_hexprint32(blk_len);
+    UartDebug_addToBuffer(")\n", 2);*/
     STORAGE_ChipSelect();
     for(uint16_t i = 0; i < blk_len; ++i) {
         uint8_t rv = SpiFlash_writeEnableAndWait(&hspi_ms, 100);
         if(!rv) {
-            uart_debug_sendline("Error enabling write for erase.\n");
+            UartDebug_sendline("Error enabling write for erase.\n");
             STORAGE_ChipDeselect();
             return rv;
         }
         rv =  SpiFlash_eraseSector(&hspi_ms, (blk_addr + i) << 12);
         if(rv) {
-            uart_debug_sendline("Error erasing sector.\n");
+            UartDebug_sendline("Error erasing sector.\n");
             STORAGE_ChipDeselect();
             return rv;
         }

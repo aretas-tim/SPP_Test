@@ -47,12 +47,12 @@ void AuthData_freeCombinedStore(AuthData_tdCombinedStore* combinedStore) {
 }
 
 void AuthData_dumpSaltedKeyStore(AuthData_tdSaltedKeyStore* saltedAuthData_tdKeyStore) {
-    uart_debug_sendline("Salted Key Store Dump:\n");
-    uart_debug_sendline("Key:\n");
-    uart_debug_hexdump(saltedAuthData_tdKeyStore->key, TRANSPORT_KEY_LEN);
-    uart_debug_sendline("Salt:\n");
-    uart_debug_hexdump(saltedAuthData_tdKeyStore->salt, TRANSPORT_KEY_LEN);
-    uart_debug_sendstring("Valid: ");
-    uart_debug_printBool(saltedAuthData_tdKeyStore->valid);
-    uart_debug_newline();
+    UartDebug_sendline("Salted Key Store Dump:\n");
+    UartDebug_sendline("Key:\n");
+    UartDebug_hexdump(saltedAuthData_tdKeyStore->key, TRANSPORT_KEY_LEN);
+    UartDebug_sendline("Salt:\n");
+    UartDebug_hexdump(saltedAuthData_tdKeyStore->salt, TRANSPORT_KEY_LEN);
+    UartDebug_sendString("Valid: ");
+    UartDebug_printBool(saltedAuthData_tdKeyStore->valid);
+    UartDebug_newline();
 }

@@ -371,22 +371,22 @@ uint8_t  USBD_PAT_COMP_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
     USBD_MSC_BOT_HandleTypeDef* hmsc = &(((PAT_COMP_Data*) pdev->pClassData)->storageData);
     USBD_StorageTypeDef* hmsc_cb = ((PAT_COMP_Callbacks*)pdev->pUserData)->storageCallbacks;
 
-    /*uart_debug_sendline("Setup Request:\n");
-    uart_debug_addToBuffer("bmRequestType: ", 15);
-    uart_debug_hexprint32(req->bmRequest);
-    uart_debug_newline();
-    uart_debug_addToBuffer("bRequest: ", 10);
-    uart_debug_hexprint32(req->bRequest);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wIndex: ", 8);
-    uart_debug_hexprint32(req->wIndex);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wValue: ", 8);
-    uart_debug_hexprint32(req->wValue);
-    uart_debug_newline();
-    uart_debug_addToBuffer("wLength: ", 9);
-    uart_debug_hexprint32(req->wLength);
-    uart_debug_newline();*/
+    /*UartDebug_sendline("Setup Request:\n");
+    UartDebug_addToBuffer("bmRequestType: ", 15);
+    UartDebug_hexprint32(req->bmRequest);
+    UartDebug_newline();
+    UartDebug_addToBuffer("bRequest: ", 10);
+    UartDebug_hexprint32(req->bRequest);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wIndex: ", 8);
+    UartDebug_hexprint32(req->wIndex);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wValue: ", 8);
+    UartDebug_hexprint32(req->wValue);
+    UartDebug_newline();
+    UartDebug_addToBuffer("wLength: ", 9);
+    UartDebug_hexprint32(req->wLength);
+    UartDebug_newline();*/
 
     switch (req->bmRequest & USB_REQ_TYPE_MASK) {
         case USB_REQ_TYPE_CLASS :
@@ -599,7 +599,7 @@ uint8_t  USBD_PAT_COMP_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                                 MSC_BOT_CplClrFeature(pdev, (uint8_t)req->wIndex);
                                 break;
                             case HOTKEY_HID_EPIN_ADDR:
-                                uart_debug_sendline("Clear Feature on KB HID IN\n");
+                                UartDebug_sendline("Clear Feature on KB HID IN\n");
                                 USBD_LL_OpenEP(pdev, HOTKEY_HID_EPIN_ADDR, USBD_EP_TYPE_INTR, HOTKEY_HID_EPIN_SIZE);
                                 memset(hHotkeyHID->transmitReportBuffer, 0, HOTKEY_HID_EPIN_SIZE);
                                 USBD_LL_Transmit (pdev, HOTKEY_HID_EPIN_ADDR, hHotkeyHID->transmitReportBuffer, HOTKEY_HID_EPIN_SIZE);
@@ -642,9 +642,9 @@ uint8_t USBD_PAT_COMP_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 
 
 uint8_t  USBD_PAT_COMP_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
-    /*uart_debug_addToBuffer("DataIn EP Num: ", 15);
-    uart_debug_printuint8(epnum);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("DataIn EP Num: ", 15);
+    UartDebug_printuint8(epnum);
+    UartDebug_newline();*/
     //why epnum comes through without its direction bit set i'm not sure
     //mask it off
     epnum = epnum & USB_EP_NUM_MASK; //mask off the direction bit
@@ -653,20 +653,20 @@ uint8_t  USBD_PAT_COMP_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
         MSC_BOT_DataIn(pdev , epnum);
         //@TODO figure out how to add USB activity indication (LED)
     } else if(epnum == (TUNNEL_HID_EPIN_ADDR & USB_EP_NUM_MASK)) {
-        //uart_debug_sendline("DataIn Event for Tunnel EP:\n");
+        //UartDebug_sendline("DataIn Event for Tunnel EP:\n");
 
         USBD_TUNNEL_HID_HandleTypeDef* hTunnelHID = &(((PAT_COMP_Data*) pdev->pClassData)->tunnelHIDData);
         bool sendPacket = false;
         ((PAT_COMP_Callbacks*) pdev->pUserData)->tunnelHIDCallbacks->InEvent(&sendPacket);
         if(sendPacket) {
-            //uart_debug_sendline("Sending packet from data in callback.\n");
+            //UartDebug_sendline("Sending packet from data in callback.\n");
             hTunnelHID->transmitState = HID_BUSY;
             USBD_LL_Transmit(pdev, TUNNEL_HID_EPIN_ADDR, hTunnelHID->inByteBuffer, TUNNEL_HID_EPIN_SIZE);
             LED_UpdateUSBActivity();
 #if defined DEBUG && (TUNNEL_HID_VERBOSE > 1)
-            uart_debug_sendline("Tunnel USB HID Sent Data In Direct:\n");
-            uart_debug_hexdump(hTunnelHID->inByteBuffer, TUNNEL_HID_EPIN_SIZE);
-            uart_debug_newline();
+            UartDebug_sendline("Tunnel USB HID Sent Data In Direct:\n");
+            UartDebug_hexdump(hTunnelHID->inByteBuffer, TUNNEL_HID_EPIN_SIZE);
+            UartDebug_newline();
 #endif
         } else {
             hTunnelHID->transmitState = HID_IDLE;
@@ -699,8 +699,8 @@ uint8_t  USBD_PAT_COMP_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
                 break;
             case HID_BUSY:
                 if(sendNormalPacket) {
-                    //uart_debug_sendline("In HID_BUSY send normal packet\n");
-                    //uart_debug_printuint32(hU2FHID->transmitBufferLen = 0);
+                    //UartDebug_sendline("In HID_BUSY send normal packet\n");
+                    //UartDebug_printuint32(hU2FHID->transmitBufferLen = 0);
                     U2FHID_FRAME* frame = (U2FHID_FRAME*) hU2FHID->transmitReportBuffer;
                     frame->cont.seq = hU2FHID->nextSequenceNum & TYPE_CONT;
                     if(hU2FHID->transmitBufferLen > U2F_HID_CONT_FRAME_DATA_LEN) {
@@ -781,9 +781,9 @@ uint8_t  USBD_PAT_COMP_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum) {
     } else if(epnum == (TUNNEL_HID_EPIN_ADDR & USB_EP_NUM_MASK)) {
         USBD_TUNNEL_HID_HandleTypeDef* hTunnelHID = &(((PAT_COMP_Data*) pdev->pClassData)->tunnelHIDData);
 #if defined DEBUG && (TUNNEL_HID_VERBOSE > 1)
-        uart_debug_sendline("Tunnel USB HID Received:\n");
-        uart_debug_hexdump(hTunnelHID->Report_buf, USBD_TUNNEL_HID_OUTREPORT_BUF_SIZE);
-        uart_debug_newline();
+        UartDebug_sendline("Tunnel USB HID Received:\n");
+        UartDebug_hexdump(hTunnelHID->Report_buf, USBD_TUNNEL_HID_OUTREPORT_BUF_SIZE);
+        UartDebug_newline();
 #endif
 
         ((PAT_COMP_Callbacks*) pdev->pUserData)->tunnelHIDCallbacks->OutEvent(hTunnelHID->Report_buf);
@@ -792,9 +792,9 @@ uint8_t  USBD_PAT_COMP_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum) {
         USBD_LL_PrepareReceive(pdev, TUNNEL_HID_EPOUT_ADDR , hTunnelHID->Report_buf, USBD_TUNNEL_HID_OUTREPORT_BUF_SIZE);
     } else if(epnum == (U2F_HID_EPOUT_ADDR & USB_EP_NUM_MASK)) {
         USBD_U2F_HID_HandleTypeDef* hU2FHID = &(((PAT_COMP_Data*) pdev->pClassData)->U2FHIDData);
-        /*uart_debug_addToBuffer("U2F USB HID Received:\n", 22);
-        uart_debug_hexdump(hU2FHID->Report_buf, USBD_U2F_HID_OUTREPORT_BUF_SIZE);
-        uart_debug_newline();*/
+        /*UartDebug_addToBuffer("U2F USB HID Received:\n", 22);
+        UartDebug_hexdump(hU2FHID->Report_buf, USBD_U2F_HID_OUTREPORT_BUF_SIZE);
+        UartDebug_newline();*/
 
         ((PAT_COMP_Callbacks*) pdev->pUserData)->U2FHIDCallbacks->OutEvent(hU2FHID->Report_buf);
         LED_UpdateUSBActivity();

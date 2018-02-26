@@ -10,19 +10,19 @@
 
 
 void Rtc_dumpRTC(void) {
-    uart_debug_sendline("RTC Dump:\n");
-    uart_debug_addToBuffer("  Date: ", 8);
-    uart_debug_hexprint32(RTC->DR);
-    uart_debug_newline();
-    uart_debug_addToBuffer("  Time: ", 8);
-    uart_debug_hexprint32(RTC->TR);
-    uart_debug_newline();
-    uart_debug_addToBuffer("  Alarm A: ", 11);
-    uart_debug_hexprint32(RTC->ALRMAR);
-    uart_debug_newline();
-    uart_debug_addToBuffer("  Alarm B: ", 11);
-    uart_debug_hexprint32(RTC->ALRMBR);
-    uart_debug_newline();
+    UartDebug_sendline("RTC Dump:\n");
+    UartDebug_addToBuffer("  Date: ", 8);
+    UartDebug_hexprint32(RTC->DR);
+    UartDebug_newline();
+    UartDebug_addToBuffer("  Time: ", 8);
+    UartDebug_hexprint32(RTC->TR);
+    UartDebug_newline();
+    UartDebug_addToBuffer("  Alarm A: ", 11);
+    UartDebug_hexprint32(RTC->ALRMAR);
+    UartDebug_newline();
+    UartDebug_addToBuffer("  Alarm B: ", 11);
+    UartDebug_hexprint32(RTC->ALRMBR);
+    UartDebug_newline();
 }
 
 /*

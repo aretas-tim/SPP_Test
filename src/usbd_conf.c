@@ -493,11 +493,11 @@ USBD_StatusTypeDef  USBD_LL_Transmit (USBD_HandleTypeDef *pdev,
                                       uint8_t  *pbuf,
                                       uint16_t  size)
 {
-    /*uart_debug_sendline("LL Transmit:\n");
-    uart_debug_addToBuffer("EP: ", 4);
-    uart_debug_hexprint16(ep_addr);
-    uart_debug_newline();
-    uart_debug_hexdump(pbuf, size);*/
+    /*UartDebug_sendline("LL Transmit:\n");
+    UartDebug_addToBuffer("EP: ", 4);
+    UartDebug_hexprint16(ep_addr);
+    UartDebug_newline();
+    UartDebug_hexdump(pbuf, size);*/
 
   HAL_PCD_EP_Transmit(pdev->pData, ep_addr, pbuf, size);
   return USBD_OK;   
