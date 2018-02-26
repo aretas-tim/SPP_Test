@@ -23,9 +23,6 @@ static uint8_t SpiFlash_writeEnable(SPI_HandleTypeDef*);
 
 
 
-
-
-
 void SpiFlash_select(void) {
     if(SpiFlash_currentPort != NULL) {
         HAL_GPIO_WritePin(SpiFlash_currentPort, SpiFlash_currentPin, RESET);
@@ -41,15 +38,13 @@ void SpiFlash_deselect(void) {
 }
 
 void SpiFlash_selectChip0(void) {
-    //HAL_GPIO_WritePin(SPI_FLASH_CS0_PORT, SPI_FLASH_CS0_PIN, RESET);
-    //HAL_GPIO_WritePin(SPI_FLASH_CS1_PORT, SPI_FLASH_CS1_PIN, SET);
+
     SpiFlash_selectNone(); //clear any outstanding selections
     SpiFlash_currentPort = SPI_FLASH_CS0_PORT;
     SpiFlash_currentPin = SPI_FLASH_CS0_PIN;
 }
 void SpiFlash_selectChip1(void) {
-    //HAL_GPIO_WritePin(SPI_FLASH_CS0_PORT, SPI_FLASH_CS0_PIN, SET);
-    //HAL_GPIO_WritePin(SPI_FLASH_CS1_PORT, SPI_FLASH_CS1_PIN, RESET);
+
     SpiFlash_selectNone(); //clear any outstanding selections
     SpiFlash_currentPort = SPI_FLASH_CS1_PORT;
     SpiFlash_currentPin = SPI_FLASH_CS1_PIN;
@@ -214,7 +209,6 @@ uint16_t SpiFlash_fastRead(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t le
  */
 uint16_t SpiFlash_readData(SPI_HandleTypeDef* hspi, uint8_t* inBuff, uint16_t len, uint32_t startAddress) {
 
-    //return SpiFlash_readDataInterrupt(hspi, inBuff, len, startAddress); /* guess what the interrupt version is better*/
     size_t cmdLen = SPI_FLASH_CMDLEN_READ_DATA; //this is going to be split up in to two HAL calls
     uint8_t cmdOutBuff[cmdLen];
     packToBuffer32(cmdOutBuff, 0, startAddress);
@@ -362,21 +356,6 @@ uint32_t SpiFlash_write(SPI_HandleTypeDef* hspi, uint8_t* outBuff, uint32_t len,
     return errorCount;
 }
 
-/*bool SPI_FLASH_IsBusy(SPI_HandleTypeDef* hspi) { //2017-09-06 not used so commented out
-    //GPIOB->BSRR = GPIO_PIN_10;
-    uint8_t sr1 = SpiFlash_readStatusRegister(hspi, 1);
-    //uart_debug_putchar(sr1);
-    //uart_debug_newline();
-    bool busy = ((sr1 & SPI_FLASH_STS_1_BUSY) == SPI_FLASH_STS_1_BUSY);
-    //GPIOB->BRR = GPIO_PIN_10;
-    return busy;
-}*/
-
-
-/*bool SPI_FLASH_IsWriteEnabled(SPI_HandleTypeDef* hspi) { //2017-09-06 not used so commented out
-    uint8_t sr1 = SpiFlash_readStatusRegister(hspi, 1);
-    return (sr1 & SPI_FLASH_STS_1_WEL);
-}*/
 
 /**
  * continually reads SR1 as a single transaction until write enabled
@@ -488,13 +467,7 @@ bool SpiFlash_eraseChip(SPI_HandleTypeDef* hspi) {
 uint8_t SpiFlash_writeEnableAndWait(SPI_HandleTypeDef* hspi, uint32_t timeout) {
     if(!SpiFlash_writeEnable(hspi)) { //as success is 0..
         //uart_debug_sendline("Waiting for WEL bit...\n");
-        /*uint32_t timeoutAt = HAL_GetTick() + timeout;
-        while(HAL_GetTick() < timeoutAt) {
-            if(SPI_FLASH_IsWriteEnabled(hspi)) {
-                //uart_debug_sendline("WEL bit set.\n");
-                return true;
-            }
-        }*/
+
         return SpiFlash_readSR1UntilWriteEnabled(hspi);
         //uart_debug_sendline("Timeout waiting for WEL bit.\n");
     }
@@ -547,7 +520,6 @@ uint8_t SpiFlash_readSFDP(SPI_HandleTypeDef* hspi, uint8_t* data, size_t maxLen,
     cmdOutBuff[2] = 0;
     cmdOutBuff[3] = 0;
     cmdOutBuff[4] = 0;
-    //cmdOutBuff[3] = (cmdOutBuff, 0, (offset & SPI_FLASH_SFDP_MASK));
     SpiFlash_select();
     HAL_StatusTypeDef rc = HAL_SPI_Transmit(hspi, cmdOutBuff, cmdLen, 1000); //send command and address
     if(HAL_OK != rc) {
