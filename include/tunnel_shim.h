@@ -48,7 +48,7 @@ typedef enum tdTunnelShimPacketState {
     TUNNEL_SHIM_PACKET_IDLE,
     TUNNEL_SHIM_PACKET_TRANSMITTED,
     TUNNEL_SHIM_PACKET_RECEIVED
-} TunnelShimPacketState;
+} TunnelShim_PacketState;
 
 typedef struct tdTunnelShimPacket {
     union {
@@ -67,7 +67,7 @@ typedef struct tdTunnelShimPacket {
             uint8_t data[0]; /* data buffer, 0 for flexible length */
         } continuation;
     };
-} TunnelShimPacket;
+} TunnelShim_Packet;
 
 
 
@@ -82,7 +82,7 @@ typedef enum tdTunnelShimState {
     TUNNEL_SHIM_TRANSMIT_ACK_WAIT, /*waiting for a transmit acknowledge from the host */
     TUNNEL_SHIM_TRANSMIT,
     TUNNEL_SHIM_TRANSMIT_COMPLETE
-} TunnelShimHandlerState;
+} TunnelShim_HandlerState;
 
 typedef enum tdTunnelShimImmediateState {
     TUNNEL_SHIM_IMM_IDLE,  /*no immediate */
@@ -90,7 +90,7 @@ typedef enum tdTunnelShimImmediateState {
     TUNNEL_SHIM_IMM_SENDING, /* something is being sent */
     TUNNEL_SHIM_IMM_SENDING_WITH_PENDING, /* something is being sent and we have something waiting */
     TUNNEL_SHIM_IMM_FULL /* two pending sends */
-} TunnelShimImmediateState;
+} TunnelShim_ImmediateState;
 
 typedef struct tdTunnelShimPacketFunctions {
     uint16_t (*transmit)(uint8_t*, uint16_t); //function called from the shim to initiate data transfer, further packets are sent via callback to TUNNEL_Shim_GetNextTransmitPacket(...)
@@ -98,11 +98,11 @@ typedef struct tdTunnelShimPacketFunctions {
     //bool (*transmitInProgress)(void); //return true there's an ongoing transmit
     void (*disableInterrupt)(void); //called to disable any interrupts to perform internal functions that should not be interrupted
     void (*enableInterrupt)(void); //called to enable the interrupts that were disabled by disableInterrupts
-} TunnelShimPacketFunctions;
+} TunnelShim_PacketFunctions;
 
 typedef struct tdTunnelShimContext {
-    TunnelShimHandlerState state;
-    //TunnelShimImmediateState immState;
+    TunnelShim_HandlerState state;
+    //TunnelShim_ImmediateState immState;
     bool isTransmitting;
 
     //volatile size_t TUNNEL_HID_DataOutExpected; //how much data we expect to receive
@@ -130,8 +130,8 @@ typedef struct tdTunnelShimContext {
     uint16_t dataBufferHead; //write to the head
     uint8_t* dataBuffer;
 
-    TunnelShimPacket* packetBuffer; /* a single packet */
-    TunnelShimPacket* immediatePacketBuffers[TUNNEL_SHIM_NUM_IMM_BUFFERS]; /* spot to hold two packets of "immediate" data that has priority over normal data */
+    TunnelShim_Packet* packetBuffer; /* a single packet */
+    TunnelShim_Packet* immediatePacketBuffers[TUNNEL_SHIM_NUM_IMM_BUFFERS]; /* spot to hold two packets of "immediate" data that has priority over normal data */
 
     //uint8_t numImmediatePacketBuffers; /* how many immediate packets we have in the buffer (now fixed at 2)*/
     uint8_t immediatePacketBufferHead; /*write to the head */
@@ -139,13 +139,12 @@ typedef struct tdTunnelShimContext {
     uint8_t immediatePacketBufferRemaining; /* how many slots left in our buffer */
     uint16_t immediateBufferByteLen; /* how many bytes the immediate buffers hold, if not packetByteLen */
 
-    TunnelShimPacketFunctions* funcs; /* function pointer struannot convert to a pointer typect */
-} TunnelShimContext;
+    TunnelShim_PacketFunctions* funcs; /* function pointer struannot convert to a pointer typect */
+} TunnelShim_Context;
 
 #define TUNNEL_SHIM_ID_MASK 0x80
 #define TUNNEL_SHIM_ID_INITIATION 0x80
 #define TUNNEL_SHIM_ID_CONTINUATION 0x00
-
 #define TUNNEL_SHIM_COMMAND_NONE 0x00
 #define TUNNEL_SHIM_COMMAND_MESSAGE 0x01 //payload is a tunnel command or response (depending on direction)
 #define TUNNEL_SHIM_COMMAND_PING 0x02 //payload should be received then immediately turned around
@@ -158,8 +157,6 @@ typedef struct tdTunnelShimContext {
 #define TUNNEL_SHIM_COMMAND_RETRANSMIT 0x7E //requests retransmission
 #define TUNNEL_SHIM_COMMAND_ERROR 0x7F //error code in data segment
 
-
-
 #define TUNNEL_SHIM_CHANNEL_RESERVED 0x00
 #define TUNNEL_SHIM_CHANNEL_BROADCAST (TUNNEL_SHIM_CHANNEL_COUNT - 1)
 #define TUNNEL_SHIM_MAX_CHANNEL_NUMBER (TUNNEL_SHIM_CHANNEL_BROADCAST - 1)
@@ -167,7 +164,6 @@ typedef struct tdTunnelShimContext {
 
 #define TUNNEL_SHIM_TIMEOUT_TRANSMIT_GLOBAL 20000 /* milliseconds for a complete transaction before giving up (global timeout, based on systick */
 #define TUNNEL_SHIM_TIMEOUT_TRANSMIT_INIT 50 /* 100us increments to wait for acknowledgement of initiation packet reception before retrying, based on internal timer */
-
 #define TUNNEL_SHIM_INIT_NONCE_LEN 8
 
 #define TUNNEL_SHIM_ERROR_NONE 0x00
@@ -195,19 +191,17 @@ typedef struct tdTunnelShimContext {
 
 #define TUNNEL_SHIM_ACK_WAIT_MAX_COUNT 10 /* how many times we'll resend an initiation packet */
 
-uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_t bufferLen, uint16_t packetLen, TunnelShimPacketFunctions* funcs);
-uint8_t TUNNEL_Shim_DeInit(TunnelShimContext* ctx);
-
+uint8_t TunnelShim_initContext(TunnelShim_Context* ctx, uint8_t* buffer, uint16_t bufferLen, uint16_t packetLen, TunnelShim_PacketFunctions* funcs);
+uint8_t TunnelShim_deInit(TunnelShim_Context* ctx);
 //functions used by the lower layer (should be called from an interrupt context if operating via interrupts
-bool TUNNEL_Shim_GetNextPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoingPacket);
-uint8_t TUNNEL_Shim_RecievePacket(TunnelShimContext* ctx, uint8_t* packetBytes, uint16_t packetLen);
-
+bool TunnelShim_getNextPacket(TunnelShim_Context* ctx, TunnelShim_Packet* outgoingPacket);
+uint8_t TunnelShim_recievePacket(TunnelShim_Context* ctx, uint8_t* packetBytes, uint16_t packetLen);
 //functions used by the upper layer (interrupt(s) used will be disabled for the duration of the call)
-uint16_t TUNNEL_Shim_SendResponse(TunnelShimContext* ctx, uint8_t* response, uint16_t len);
-void TUNNEL_Shim_CheckTimeout(TunnelShimContext* ctx);
-void TUNNEL_Shim_DoTick(TunnelShimContext* ctx);
-size_t TUNNEL_Shim_GetMessage(TunnelShimContext* ctx, uint8_t** message, uint8_t* channel);
-size_t TUNNEL_Shim_MessageAvailable(TunnelShimContext* ctx);
-void TUNNEL_Shim_Reset(TunnelShimContext* ctx);
+uint16_t TunnelShim_sendResponse(TunnelShim_Context* ctx, uint8_t* response, uint16_t len);
+void TunnelShim_checkTimeout(TunnelShim_Context* ctx);
+void TunnelShim_doTick(TunnelShim_Context* ctx);
+size_t TunnelShim_getMessage(TunnelShim_Context* ctx, uint8_t** message, uint8_t* channel);
+size_t TunnelShim_messageAvailable(TunnelShim_Context* ctx);
+void TunnelShim_reset(TunnelShim_Context* ctx);
 
 #endif /* TUNNEL_SHIM_H_ */

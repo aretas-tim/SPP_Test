@@ -84,7 +84,7 @@ void TUNNEL_HID_SetDisconnectedCallback(void (*callback)(void));
 //void TUNNEL_HID_CheckTimeout(void);
 //void TUNNEL_HID_TransmitInitTimeoutCallback(void);
 
-TunnelShimContext* TUNNEL_HID_GetShimContext(void);
+TunnelShim_Context* TUNNEL_HID_GetShimContext(void);
 
 #ifdef __cplusplus
 }

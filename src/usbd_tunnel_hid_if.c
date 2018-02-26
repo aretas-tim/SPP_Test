@@ -87,14 +87,14 @@ USBD_TUNNEL_HID_ItfTypeDef USBD_TUNNEL_HID_Callbacks =
         //TUNNEL_HID_TransmitCompleteCallback
 };
 
-TunnelShimPacketFunctions TUNNEL_HID_ShimCallbacks = {
+TunnelShim_PacketFunctions TUNNEL_HID_ShimCallbacks = {
         TUNNEL_HID_Transmit,
         NULL,
         TUNNEL_HID_DisableInterrupt,
         TUNNEL_HID_EnableInterrupt
 };
 
-TunnelShimContext TUNNEL_HID_ShimContext = {.state = TUNNEL_SHIM_UNCONFIGURED,
+TunnelShim_Context TUNNEL_HID_ShimContext = {.state = TUNNEL_SHIM_UNCONFIGURED,
                                             .funcs = &TUNNEL_HID_ShimCallbacks
                                              //will init the rest later
 };
@@ -103,7 +103,7 @@ void (*TUNNEL_HID_DisconnectedCallback)(void) = NULL;
 /* Private functions ---------------------------------------------------------*/
 
 static int8_t TUNNEL_HID_Init(void) {
-    uint8_t initResp = TUNNEL_Shim_InitContext(&TUNNEL_HID_ShimContext, TUNNEL_HID_Buffer, TUNNEL_HID_BUFFER_LEN, TUNNEL_HID_EPIN_SIZE, &TUNNEL_HID_ShimCallbacks);
+    uint8_t initResp = TunnelShim_initContext(&TUNNEL_HID_ShimContext, TUNNEL_HID_Buffer, TUNNEL_HID_BUFFER_LEN, TUNNEL_HID_EPIN_SIZE, &TUNNEL_HID_ShimCallbacks);
 
     //uart_debug_sendstring("Tunnel HID Enable Interrupt at: ");
     //uart_debug_hexprint32((uint32_t) TUNNEL_HID_EnableInterrupt); //yes it'll complain about the cast
@@ -116,7 +116,7 @@ static int8_t TUNNEL_HID_Init(void) {
 }
 
 static int8_t TUNNEL_HID_DeInit(void) {
-    TUNNEL_Shim_DeInit(&TUNNEL_HID_ShimContext);
+    TunnelShim_deInit(&TUNNEL_HID_ShimContext);
     if(TUNNEL_HID_DisconnectedCallback != NULL) {
         TUNNEL_HID_DisconnectedCallback();
     }
@@ -125,7 +125,7 @@ static int8_t TUNNEL_HID_DeInit(void) {
 
 static int8_t TUNNEL_HID_OutEvent(uint8_t* report) {
     //uint8_t resp =
-    TUNNEL_Shim_RecievePacket(&TUNNEL_HID_ShimContext, report, TUNNEL_HID_EPIN_SIZE);
+    TunnelShim_recievePacket(&TUNNEL_HID_ShimContext, report, TUNNEL_HID_EPIN_SIZE);
 
 
     return USBD_OK;
@@ -133,8 +133,8 @@ static int8_t TUNNEL_HID_OutEvent(uint8_t* report) {
 
 static int8_t TUNNEL_HID_InEventComplete(bool* packetReady) {
     USBD_TUNNEL_HID_HandleTypeDef* hTunnelHID = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->tunnelHIDData);
-    //TunnelShimPacket* pkt = &(hTunnelHID->inPacketBuffer);
-    *packetReady = TUNNEL_Shim_GetNextPacket(&TUNNEL_HID_ShimContext, &(hTunnelHID->inPacketBuffer));
+    //TunnelShim_Packet* pkt = &(hTunnelHID->inPacketBuffer);
+    *packetReady = TunnelShim_getNextPacket(&TUNNEL_HID_ShimContext, &(hTunnelHID->inPacketBuffer));
     /*if(*packetReady) {
         hTunnelHID->transmitState = HID_BUSY;
         USBD_LL_Transmit(&hUsbDeviceFS, TUNNEL_HID_EPIN_ADDR, hTunnelHID->inByteBuffer, TUNNEL_HID_EPIN_SIZE);
@@ -179,7 +179,7 @@ static void TUNNEL_HID_EnableInterrupt(void) {
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
 }
 
-TunnelShimContext* TUNNEL_HID_GetShimContext(void) {
+TunnelShim_Context* TUNNEL_HID_GetShimContext(void) {
     return &TUNNEL_HID_ShimContext;
 }
 

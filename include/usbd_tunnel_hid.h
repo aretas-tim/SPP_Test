@@ -95,7 +95,7 @@ typedef struct
 {
   uint8_t               Report_buf[USBD_TUNNEL_HID_OUTREPORT_BUF_SIZE];
   //uint8_t                transmitReportBuffer[TUNNEL_HID_EPIN_SIZE]; //holds a single report, used so we don't overrun the passed-in transmitBuffer when sending data that isn't a multiple of the packet length
-  //volatile TunnelShimPacket        transmitImmediatePacket[TUNNEL_HID_IMMEDIATE_PACKET_BUFFER_LEN]; //holds packets for immediate send
+  //volatile TunnelShim_Packet        transmitImmediatePacket[TUNNEL_HID_IMMEDIATE_PACKET_BUFFER_LEN]; //holds packets for immediate send
   //volatile uint8_t            transmitImmediateNum;
   uint32_t              Protocol;
   uint32_t              IdleState;
@@ -106,7 +106,7 @@ typedef struct
   //HID_StateTypeDef        transmitImmediateState;
   //HID_StateTypeDef         receiveState;
   union {
-      TunnelShimPacket        inPacketBuffer;
+      TunnelShim_Packet        inPacketBuffer;
       uint8_t                inByteBuffer[TUNNEL_HID_EPIN_SIZE];
   };
   //size_t                transmitPacketBufferLen;
