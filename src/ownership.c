@@ -11,38 +11,38 @@
 #include "pkcs5.h"
 #include "tunnel.h" /* so correct tunnel codes can be returned */
 
-static uint32_t relockTicks = 0;
-bool hasBeenUnlocked = false;
+static uint32_t Ownership_relockTicks = 0;
+bool Ownership_hasBeenUnlocked = false;
 
-void (*Ownership_ClearFunc)(void) = NULL;
+void (*Ownership_clearFunc)(void) = NULL;
 
-PINUpdateInfo pinUpdateInfo = {false, 0, 0}; /* holds info to be used in changing the PIN */
+Ownership_PinUpdateInfo Ownership_pinUpdateInfo = {false, 0, 0}; /* holds info to be used in changing the PIN */
 
 /* initializes the ownership system.
  * takes a pointer to a function that will be called when attack mitigation is set to erase the device after a certain number of failures
  * function must not be NULL or it will enter an infinite loop
  */
 void Ownership_Init(void (*clearFunc)(void)) {
-    hasBeenUnlocked = false;
+    Ownership_hasBeenUnlocked = false;
     if(clearFunc == NULL) {
         uart_debug_sendline("Ownership Clear Callback cannot be NULL. Entering Infinite Loop.\n");
         while(true);
     }
-    Ownership_ClearFunc = clearFunc;
+    Ownership_clearFunc = clearFunc;
 }
 
 /* returns if this device has been unlocked since the last reset
  * a precaution against accidental force clears
  */
 bool Ownership_HasBeenUnlocked(void) {
-    return hasBeenUnlocked;
+    return Ownership_hasBeenUnlocked;
 }
 
 /*
  * returns true if this device is owned
  * returns false if it does not have an owner (
  */
-bool isOwned(void) {
+bool Ownership_isOwned(void) {
     if((*BACKUP_REGS_OWNERSHIP_REG & OWNERSHIP_CTRL_OWNERSHIP) == OWNERSHIP_CTRL_IS_OWNED) {
         return true;
     } else {
@@ -59,7 +59,7 @@ bool isOwned(void) {
  * param saltLen the length of the salt
  * param storageKey output: the storage key, valid if the return value is 0
  */
-uint8_t installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uint8_t storageKey[OWNERSHIP_KEY_LEN]) {
+uint8_t Ownership_installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uint8_t storageKey[OWNERSHIP_KEY_LEN]) {
     //uart_debug_hexdump(salt, saltLen);
     //uart_debug_newline();
     size_t combinedDataLen = OWNERSHIP_PIN_HASH_LEN + OWNERSHIP_KEY_LEN;
@@ -145,8 +145,8 @@ uint8_t installOwner(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen,
  *
  *
  */
-bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uint8_t storageKey[OWNERSHIP_KEY_LEN]) {
-    if(!checkAttackMitigation()) {
+bool Ownership_ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uint8_t storageKey[OWNERSHIP_KEY_LEN]) {
+    if(!Ownership_checkAttackMitigation()) {
         //cannot unlock while under attack mitigation protection
         return false;
     }
@@ -195,11 +195,11 @@ bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uin
     timer2MatchEnd = TIM2->CNT;
 #endif /* DEBUG_TIME_UNLOCK */
     if(match) {
-        hasBeenUnlocked = true;
-        clearAttackMitigation();
-        pinUpdateInfo.valid = false;
-        pinUpdateInfo.minLen = 0;
-        pinUpdateInfo.workFactor = 0;
+        Ownership_hasBeenUnlocked = true;
+        Ownership_clearAttackMitigation();
+        Ownership_pinUpdateInfo.valid = false;
+        Ownership_pinUpdateInfo.minLen = 0;
+        Ownership_pinUpdateInfo.workFactor = 0;
 
         uint8_t iv[OWNERSHIP_IV_LEN];
         uint8_t encryptedStorageKey[OWNERSHIP_KEY_LEN];
@@ -214,7 +214,7 @@ bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uin
         //int decResult =
         mbedtls_aes_crypt_cbc(&aesctx, MBEDTLS_AES_DECRYPT, OWNERSHIP_KEY_LEN, iv, encryptedStorageKey, storageKey);
     } else {
-        increaseAttackMitigation();
+        Ownership_increaseAttackMitigation();
     }
 #ifdef DEBUG_TIME_UNLOCK
     TIM2->CR1 &= ~(0x0001); //stop timer 2
@@ -244,8 +244,8 @@ bool ownerUnlock(uint8_t* pin, size_t pinLen, uint8_t* salt, size_t saltLen, uin
  * better be sure you know what you're doing
  * always returns true
  */
-bool clearOwner(void) {
-    clearAttackMitigation(); //clear this
+bool Ownership_clearOwner(void) {
+    Ownership_clearAttackMitigation(); //clear this
     *BACKUP_REGS_OWNERSHIP_REG = (*BACKUP_REGS_OWNERSHIP_REG & ~OWNERSHIP_CTRL_OWNERSHIP); //clear our owned bits
     volatile uint32_t* regPtr = BACKUP_REGS_PASSWORD_HASH_BASE; //@TODO update this if additional sensitive data is stored
     do {
@@ -399,7 +399,7 @@ uint32_t getSecondsSinceEpoch() {
 /* returns true if attack mitigation allows an action to proceed.
  * returns false if attack mitigation is in progress and the action must not proceed
  */
-bool checkAttackMitigation(void) {
+bool Ownership_checkAttackMitigation(void) {
     uint32_t lockoutUntilTime = *BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME;
     uint32_t currentTime = getSecondsSinceEpoch();
     //check the lockout time to see if its in to the next century
@@ -413,12 +413,12 @@ bool checkAttackMitigation(void) {
     return (currentTime >= lockoutUntilTime);
 }
 
-void clearAttackMitigation(void) {
+void Ownership_clearAttackMitigation(void) {
     *BACKUP_REGS_AM_COUNT_REG = 0; //clear the reg
     *BACKUP_REGS_AM_LOCKOUT_UNTIL_TIME = 0; //remove any existing lockout
 }
 
-void increaseAttackMitigation(void) {
+void Ownership_increaseAttackMitigation(void) {
     uint32_t count = ++(*BACKUP_REGS_AM_COUNT_REG);
     uint32_t startCount, endCount, eraseCount, aggressiveness;
 
@@ -430,7 +430,7 @@ void increaseAttackMitigation(void) {
     if(count < startCount) {
         return; //nothing to do
     } else if ((count >= eraseCount) && (eraseCount > 0)) { //erase count of 0 means no erase
-        Ownership_ClearFunc();
+        Ownership_clearFunc();
     } else {
         //calculate and set the lockout time
         uint32_t lockoutSeconds = AM_BASE_TIME_IN_SECONDS;
@@ -459,9 +459,9 @@ void increaseAttackMitigation(void) {
  * increments the relock counter and checks if it exceeds its timeout.
  * call this once per second
  */
-bool checkRelockTimeout(void) {
-    relockTicks++;
-    return (relockTicks > (*BACKUP_REGS_RELOCK_REG & RELOCK_SECONDS_MASK));
+bool Ownership_checkRelockTimeout(void) {
+    Ownership_relockTicks++;
+    return (Ownership_relockTicks > (*BACKUP_REGS_RELOCK_REG & RELOCK_SECONDS_MASK));
 
 }
 /*
@@ -470,21 +470,21 @@ bool checkRelockTimeout(void) {
  * the intent here is that this is called when an authorization-required function is called
  * if the owner has indicated they do not want a "keep alive" style function, this function can be updated so that it does nothing
  */
-void updateRelockTimeout(void) {
+void Ownership_updateRelockTimeout(void) {
     if((*BACKUP_REGS_RELOCK_REG & RELOCK_TYPE_MASK) == RELOCK_TYPE_ANY_AUTH) {
-        relockTicks = 0;
+        Ownership_relockTicks = 0;
     } //else do nothing
 }
 /*
  * resets the relock timeout.
  * call this on successful unlock.
  */
-void resetRelockTimeout(void) {
-    relockTicks = 0;
+void Ownership_resetRelockTimeout(void) {
+    Ownership_relockTicks = 0;
 }
 
 
-uint32_t Ownership_DoInitialSetup(OwnershipSetupInfo* setupInfo){
+uint32_t Ownership_doInitialSetup(Ownership_SetupInfo* setupInfo){
     if(*BACKUP_REGS_OWNERSHIP_REG & OWNERSHIP_CTRL_OWNERSHIP) {
         return TUNNEL_RSP_DEVICE_OWNED;
     }
@@ -547,7 +547,7 @@ uint32_t Ownership_DoInitialSetup(OwnershipSetupInfo* setupInfo){
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t Ownership_GetConfiguration(OwnershipSetupInfo* configInfo) {
+uint32_t Ownership_getConfiguration(Ownership_SetupInfo* configInfo) {
     if(configInfo == NULL) {
         return TUNNEL_RSP_FAILED;
     }
@@ -569,7 +569,7 @@ uint32_t Ownership_GetConfiguration(OwnershipSetupInfo* configInfo) {
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t Ownership_SetupAttackMitigation(uint8_t threshold, uint8_t maxCount, uint8_t eraseCount, uint8_t baseTime) {
+uint32_t Ownership_setupAttackMitigation(uint8_t threshold, uint8_t maxCount, uint8_t eraseCount, uint8_t baseTime) {
     if(*BACKUP_REGS_AM_COUNT_REG) {
         //cannot change the attack mitigation if we're under attack mitigation protection
         return TUNNEL_RSP_FAILED;
@@ -606,7 +606,7 @@ uint32_t Ownership_SetupAttackMitigation(uint8_t threshold, uint8_t maxCount, ui
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t Ownership_SetupRelock(uint16_t timeout, uint8_t mode) {
+uint32_t Ownership_setupRelock(uint16_t timeout, uint8_t mode) {
     *BACKUP_REGS_RELOCK_REG = timeout | (mode ? RELOCK_TYPE_ANY_AUTH : RELOCK_TYPE_PIN_ONLY);
 
     return TUNNEL_RSP_SUCCESS;
@@ -618,7 +618,7 @@ uint32_t Ownership_SetupRelock(uint16_t timeout, uint8_t mode) {
  * param minOTCLen    the minimum one-time code length the device considers acceptable
  * param tunnelTime the number of milliseconds the device will spend on the KDF (turns in to the work factor
  */
-uint32_t Ownership_SetupTunnel(uint8_t minOTCLen, uint32_t tunnelTime) {
+uint32_t Ownership_setupTunnel(uint8_t minOTCLen, uint32_t tunnelTime) {
     if((tunnelTime < MINIMUM_TUNNEL_TIME) || (tunnelTime > MAXIMUM_TUNNEL_TIME)) {
         return TUNNEL_RSP_BAD_PARAMETER;
     }
@@ -652,8 +652,8 @@ uint32_t Ownership_SetupPINChange(uint8_t minPINLen, uint32_t unlockTime) {
             return TUNNEL_RSP_BAD_PARAMETER;
         }
     }
-    pinUpdateInfo.minLen = minPINLen;
-    pinUpdateInfo.workFactor = (unlockTime * 1000) / KDF_ITERATIONS_PER_SECOND;
+    Ownership_pinUpdateInfo.minLen = minPINLen;
+    Ownership_pinUpdateInfo.workFactor = (unlockTime * 1000) / KDF_ITERATIONS_PER_SECOND;
 
     return TUNNEL_RSP_SUCCESS;
 }

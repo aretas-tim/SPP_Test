@@ -1416,7 +1416,7 @@ uint32_t TUNNEL_SetupInitial(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) 
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_DEVICE_OWNED);
         return TUNNEL_RSP_DEVICE_OWNED;
     }
-    OwnershipSetupInfo setupInfo;
+    Ownership_SetupInfo setupInfo;
 
     setupInfo.am_threshold = TUNNEL_BufferExtract8(cbuff);
     setupInfo.am_maxCount = TUNNEL_BufferExtract8(cbuff);
@@ -1429,7 +1429,7 @@ uint32_t TUNNEL_SetupInitial(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) 
     setupInfo.relockTimeout = TUNNEL_BufferExtract16(cbuff);
     setupInfo.relockMode = TUNNEL_BufferExtract8(cbuff);
 
-    uint32_t setupResult = Ownership_DoInitialSetup(&setupInfo);
+    uint32_t setupResult = Ownership_doInitialSetup(&setupInfo);
 
     TUNNEL_SendShortClear(tunnel, setupResult);
     return setupResult;
@@ -1445,9 +1445,9 @@ uint32_t TUNNEL_OwnerGetConfiguration(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_AUTHFAIL);
         return TUNNEL_RSP_AUTHFAIL;
     }
-    OwnershipSetupInfo setupInfo;
+    Ownership_SetupInfo setupInfo;
 
-    uint32_t getConfigResult = Ownership_GetConfiguration(&setupInfo);
+    uint32_t getConfigResult = Ownership_getConfiguration(&setupInfo);
 
     if(getConfigResult == TUNNEL_RSP_SUCCESS) {
         TUNNEL_BufferInit(&tunnelBuffer);
@@ -1489,7 +1489,7 @@ uint32_t TUNNEL_SetupAttackMitigation(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX
     am_eraseCount = TUNNEL_BufferExtract8(cbuff);
     am_baseTime = TUNNEL_BufferExtract8(cbuff);
 
-    uint32_t result = Ownership_SetupAttackMitigation(am_threshold, am_maxCount, am_eraseCount, am_baseTime);
+    uint32_t result = Ownership_setupAttackMitigation(am_threshold, am_maxCount, am_eraseCount, am_baseTime);
 
     TUNNEL_SendShortEnc(tunnel, TUNNEL_ORD_OWNER_SETUP_AM, result);
 
@@ -1510,7 +1510,7 @@ uint32_t TUNNEL_SetupTunnel(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
     uint32_t tunnelTime = TUNNEL_BufferExtract32(cbuff);
     uint8_t minOTCLen = TUNNEL_BufferExtract8(cbuff);
 
-    uint32_t result = Ownership_SetupTunnel(minOTCLen, tunnelTime);
+    uint32_t result = Ownership_setupTunnel(minOTCLen, tunnelTime);
 
     TUNNEL_SendShortEnc(tunnel, TUNNEL_ORD_OWNER_SETUP_TUNNEL, result);
 
@@ -1552,7 +1552,7 @@ uint32_t TUNNEL_SetupRelock(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
     uint16_t timeout = TUNNEL_BufferExtract16(cbuff);
     uint8_t mode = TUNNEL_BufferExtract8(cbuff);
 
-    uint32_t result = Ownership_SetupRelock(timeout, mode);
+    uint32_t result = Ownership_setupRelock(timeout, mode);
 
     TUNNEL_SendShortEnc(tunnel, TUNNEL_ORD_OWNER_SETUP_UNLOCK, result);
 
