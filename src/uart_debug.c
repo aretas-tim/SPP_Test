@@ -202,15 +202,16 @@ void uart_debug_hexdump(uint8_t* buff, uint32_t len) {
 }
 
 /* puts a newline out cause i'm lazy*/
-void uart_debug_newline(void) {
+void UartDebug_newline(void) {
+#ifdef UART_DEBUG_OSX
+	uint8_t carriageChar = '\r';
+	UartDebug_addToBuffer(&carriageChar, 1);
+#endif
     uint8_t newlineChar = '\n';
-    uart_debug_addToBuffer(&newlineChar, 1);
+    UartDebug_addToBuffer(&newlineChar, 1);
 }
 
-static void uart_debug_carriageReturn(void) {
-    uint8_t newlineChar = '\r';
-    uart_debug_addToBuffer(&newlineChar, 1);
-}
+
 
 /* puts a newline-terminated character string on the wire (limited to the transmit buffer length for sanity) */
 /*void uart_debug_sendline(char* str) {

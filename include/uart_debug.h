@@ -7,7 +7,7 @@
 #include "stm32l4xx_hal.h"
 
 #define DEBUG_UART_HEXDUMP_BLOCK_SIZE 16 /*bytes per dump line, can be a maximum of DEBUG_UART_TEMP_BUFFER_LEN / 3 */
-
+#define UART_DEBUG_OSX 1
 int8_t UART_Debug_Init(UART_HandleTypeDef*);
 void UART_Debug_Deinit(void);
 uint32_t uart_debug_addToBuffer(uint8_t*, uint32_t);
