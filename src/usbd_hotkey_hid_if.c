@@ -37,21 +37,23 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-
-static int8_t HOTKEY_HID_Init     (void);
-static int8_t HOTKEY_HID_DeInit   (void);
-static int8_t HOTKEY_HID_OutEvent (uint8_t* report);
-
 #define HOTKEY_INTERNAL_BUFFER_LEN 256
 
-KeyWithModifiers HOTKEY_InternalBuffer[HOTKEY_INTERNAL_BUFFER_LEN];
+
+static int8_t HotkeyHid_init     (void);
+static int8_t HotkeyHid_deinit   (void);
+static int8_t HotkeyHid_outEvent (uint8_t* report);
+
+
+
+KeyWithModifiers HotkeyHid_internalBuffer[HOTKEY_INTERNAL_BUFFER_LEN];
 
 /* Private variables ---------------------------------------------------------*/
 
 extern USBD_HandleTypeDef hUsbDeviceFS; //so we can send from this file
 
 
-__ALIGN_BEGIN static uint8_t HOTKEY_HID_ReportDesc[USBD_HOTKEY_HID_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t HotkeyHid_reportDesc[USBD_HOTKEY_HID_REPORT_DESC_SIZE] __ALIGN_END =
 {
   /* USER CODE BEGIN 0 */
   0x05, 0x01,  /* usage page 0x01 generic desktop, 2*/
@@ -91,10 +93,10 @@ __ALIGN_BEGIN static uint8_t HOTKEY_HID_ReportDesc[USBD_HOTKEY_HID_REPORT_DESC_S
 
 USBD_HOTKEY_HID_ItfTypeDef USBD_HOTKEY_HID_Callbacks =
 {
-        HOTKEY_HID_ReportDesc,
-        HOTKEY_HID_Init,
-        HOTKEY_HID_DeInit,
-        HOTKEY_HID_OutEvent,
+        HotkeyHid_reportDesc,
+        HotkeyHid_init,
+        HotkeyHid_deinit,
+        HotkeyHid_outEvent,
 };
 /* Private functions ---------------------------------------------------------*/
 
@@ -104,9 +106,9 @@ USBD_HOTKEY_HID_ItfTypeDef USBD_HOTKEY_HID_Callbacks =
   * @param  None
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t HOTKEY_HID_Init(void) {
+static int8_t HotkeyHid_init(void) {
 
-    memset(HOTKEY_InternalBuffer, 0, sizeof(KeyWithModifiers) * HOTKEY_INTERNAL_BUFFER_LEN);
+    memset(HotkeyHid_internalBuffer, 0, sizeof(KeyWithModifiers) * HOTKEY_INTERNAL_BUFFER_LEN);
     return (0);
 }
 
@@ -116,13 +118,13 @@ static int8_t HOTKEY_HID_Init(void) {
   * @param  None
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t HOTKEY_HID_DeInit(void)
+static int8_t HotkeyHid_deinit(void)
 {
   /*
      Add your deinitialization code here 
   */  
     //clear the internal buffer
-    memset(HOTKEY_InternalBuffer, 0, sizeof(KeyWithModifiers) * HOTKEY_INTERNAL_BUFFER_LEN);
+    memset(HotkeyHid_internalBuffer, 0, sizeof(KeyWithModifiers) * HOTKEY_INTERNAL_BUFFER_LEN);
     return (0);
 }
 
@@ -134,7 +136,7 @@ static int8_t HOTKEY_HID_DeInit(void)
   * @param  state: event state
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t HOTKEY_HID_OutEvent  (uint8_t* report )
+static int8_t HotkeyHid_outEvent  (uint8_t* report )
 { 
     UartDebug_addToBuffer("USB Hotkey HID Received:\n", 25);
     UartDebug_hexdump(report, USBD_HOTKEY_HID_OUTREPORT_BUF_SIZE);
@@ -155,7 +157,7 @@ static int8_t HOTKEY_HID_OutEvent  (uint8_t* report )
  * returns the number of scancodes sent (usually equal to the number of characters)
  * if the text is longer than the internal buffer, text will be truncated.
  */
-uint16_t HOTKEY_HID_SendString(char* text) {
+uint16_t HotkeyHid_sendString(char* text) {
     if(text == NULL) {
         return 0;
     }
@@ -172,25 +174,25 @@ uint16_t HOTKEY_HID_SendString(char* text) {
     //UartDebug_hexdump(text, 32);
     uint16_t len = 0;
     while((*text != '\0') && (len < HOTKEY_INTERNAL_BUFFER_LEN)) {
-        getKeyFromASCII(*text, &(HOTKEY_InternalBuffer[len]));
+        getKeyFromASCII(*text, &(HotkeyHid_internalBuffer[len]));
         text++;
-        if(HOTKEY_InternalBuffer[len].scancode == SCANCODE_NULL) {
+        if(HotkeyHid_internalBuffer[len].scancode == SCANCODE_NULL) {
             continue; //jump out early as it was an unprintable character
         }
         len++;
     }
     //UartDebug_hexprint32(len);
     //UartDebug_sendline("USB Hotkey HID Send:\n");
-    //UartDebug_hexdump((uint8_t*) HOTKEY_InternalBuffer, sizeof(KeyWithModifiers) * len);
+    //UartDebug_hexdump((uint8_t*) HotkeyHid_internalBuffer, sizeof(KeyWithModifiers) * len);
 
-    HOTKEY_HID_SendScancodes(HOTKEY_InternalBuffer, len);
+    HotkeyHid_sendScancodes(HotkeyHid_internalBuffer, len);
     return len;
 }
 
 
 /* sends keystrokes to the host, one at a time
  * will handle duplicated scancodes by inserting a null report between them */
-uint16_t HOTKEY_HID_SendScancodes(KeyWithModifiers* codes, uint16_t len) {
+uint16_t HotkeyHid_sendScancodes(KeyWithModifiers* codes, uint16_t len) {
 
 #ifdef USBD_COMPOSITE
     USBD_HOTKEY_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->hotkeyHIDData);
