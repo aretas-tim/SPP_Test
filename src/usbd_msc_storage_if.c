@@ -44,34 +44,20 @@
 #define STORAGE_BLK_NBR                  0x1000
 #define STORAGE_BLK_SIZ                  0x1000
 
-void (*STORAGE_ChipSelect)(void) = &SpiFlash_selectChip1;
-void (*STORAGE_ChipDeselect)(void) = &SpiFlash_selectNone;
+void (*Storage_chipSelect)(void) = &SpiFlash_selectChip1;
+void (*Storage_chipDeselect)(void) = &SpiFlash_selectNone;
 extern SPI_HandleTypeDef hspi_ms;
 
-int8_t STORAGE_Init (uint8_t lun);
-
-int8_t STORAGE_GetCapacity (uint8_t lun, 
-                           uint32_t *block_num, 
-                           uint16_t *block_size);
-
-int8_t  STORAGE_IsReady (uint8_t lun);
-
-int8_t  STORAGE_IsWriteProtected (uint8_t lun);
-
-int8_t STORAGE_Read (uint8_t lun, 
-                        uint8_t *buf, 
-                        uint32_t blk_addr,
-                        uint16_t blk_len);
-
-int8_t STORAGE_Write (uint8_t lun, 
-                        uint8_t *buf, 
-                        uint32_t blk_addr,
-                        uint16_t blk_len);
-
-int8_t STORAGE_GetMaxLun (void);
+int8_t Storage_init (uint8_t lun);
+int8_t Storage_getCapacity (uint8_t lun,uint32_t *block_num, uint16_t *block_size);
+int8_t  Storage_isReady (uint8_t lun);
+int8_t  Storage_isWriteProtected (uint8_t lun);
+int8_t Storage_read (uint8_t lun,uint8_t *buf, uint32_t blk_addr, uint16_t blk_len);
+int8_t Storage_write (uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len);
+int8_t Storage_getMaxLun (void);
 
 /* USB Mass storage Standard Inquiry Data */
-int8_t  STORAGE_Inquirydata[] = {//36
+int8_t  Storage_inquiryData[] = {//36
   
   /* LUN 0 */
   0x00,        
@@ -90,14 +76,14 @@ int8_t  STORAGE_Inquirydata[] = {//36
 
 USBD_StorageTypeDef USBD_MSC_Template_fops =
 {
-  STORAGE_Init,
-  STORAGE_GetCapacity,
-  STORAGE_IsReady,
-  STORAGE_IsWriteProtected,
-  STORAGE_Read,
-  STORAGE_Write,
-  STORAGE_GetMaxLun,
-  STORAGE_Inquirydata,
+  Storage_init,
+  Storage_getCapacity,
+  Storage_isReady,
+  Storage_isWriteProtected,
+  Storage_read,
+  Storage_write,
+  Storage_getMaxLun,
+  Storage_inquiryData,
   
 };
 /*******************************************************************************
@@ -107,7 +93,7 @@ USBD_StorageTypeDef USBD_MSC_Template_fops =
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t STORAGE_Init (uint8_t lun)
+int8_t Storage_init (uint8_t lun)
 {
   return (0);
 }
@@ -119,7 +105,7 @@ int8_t STORAGE_Init (uint8_t lun)
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t STORAGE_GetCapacity (uint8_t lun, uint32_t *block_num, uint16_t *block_size)
+int8_t Storage_getCapacity (uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   *block_num  = STORAGE_BLK_NBR;
   *block_size = STORAGE_BLK_SIZ;
@@ -133,7 +119,7 @@ int8_t STORAGE_GetCapacity (uint8_t lun, uint32_t *block_num, uint16_t *block_si
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t  STORAGE_IsReady (uint8_t lun)
+int8_t  Storage_isReady (uint8_t lun)
 {
     return 1;
     //return 0; //@TODO re-enable this. Disabled to prevent resource contention with Tunnel HID while SPI port is shared.
@@ -146,7 +132,7 @@ int8_t  STORAGE_IsReady (uint8_t lun)
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t  STORAGE_IsWriteProtected (uint8_t lun)
+int8_t  Storage_isWriteProtected (uint8_t lun)
 {
   return  0;
   //@TODO set this up so it is normally write-protected. require a special authorized command to unprotect it (prevents inadvertent changes)
@@ -159,7 +145,7 @@ int8_t  STORAGE_IsWriteProtected (uint8_t lun)
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t STORAGE_Read (uint8_t lun, 
+int8_t Storage_read (uint8_t lun,
                  uint8_t *buf, 
                  uint32_t blk_addr,                       
                  uint16_t blk_len)
@@ -172,9 +158,9 @@ int8_t STORAGE_Read (uint8_t lun,
     UartDebug_hexprint32(blk_len);
     UartDebug_addToBuffer(")\n", 2);*/
     uint16_t readLen = blk_len * STORAGE_BLK_SIZ;
-    STORAGE_ChipSelect();
+    Storage_chipSelect();
     uint16_t rv = SpiFlash_readData(&hspi_ms, buf, readLen, blk_addr << 12);
-    STORAGE_ChipDeselect();
+    Storage_chipDeselect();
     if(rv == readLen) {
         return 0;
     } else {
@@ -189,7 +175,7 @@ int8_t STORAGE_Read (uint8_t lun,
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t STORAGE_Write (uint8_t lun, 
+int8_t Storage_write (uint8_t lun,
                   uint8_t *buf, 
                   uint32_t blk_addr,
                   uint16_t blk_len)
@@ -201,24 +187,24 @@ int8_t STORAGE_Write (uint8_t lun,
     UartDebug_addToBuffer(", ", 2);
     UartDebug_hexprint32(blk_len);
     UartDebug_addToBuffer(")\n", 2);*/
-    STORAGE_ChipSelect();
+    Storage_chipSelect();
     for(uint16_t i = 0; i < blk_len; ++i) {
         uint8_t rv = SpiFlash_writeEnableAndWait(&hspi_ms, 100);
         if(!rv) {
             UartDebug_sendline("Error enabling write for erase.\n");
-            STORAGE_ChipDeselect();
+            Storage_chipDeselect();
             return rv;
         }
         rv =  SpiFlash_eraseSector(&hspi_ms, (blk_addr + i) << 12);
         if(rv) {
             UartDebug_sendline("Error erasing sector.\n");
-            STORAGE_ChipDeselect();
+            Storage_chipDeselect();
             return rv;
         }
         SpiFlash_readSR1UntilNotBusy(&hspi_ms); //wait for erase to complete
     }
     uint32_t write_rv = SpiFlash_write(&hspi_ms, buf, blk_len * STORAGE_BLK_SIZ, blk_addr << 12);
-    STORAGE_ChipDeselect();
+    Storage_chipDeselect();
     if(write_rv) {
         return 1;
     }
@@ -231,7 +217,7 @@ int8_t STORAGE_Write (uint8_t lun,
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-int8_t STORAGE_GetMaxLun (void)
+int8_t Storage_getMaxLun (void)
 {
   return (STORAGE_LUN_NBR - 1);
 }
