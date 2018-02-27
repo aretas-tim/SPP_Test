@@ -19,10 +19,10 @@
 #include "sram2.h"
 
 
-Icc_tdTargetInfo* Icc_currentTarget = NULL; /* pointer to the buffer that the DMA is currently using, direction depends on context */
+Icc_TargetInfo* Icc_currentTarget = NULL; /* pointer to the buffer that the DMA is currently using, direction depends on context */
 uint16_t Icc_currentTransferLen = 0; /* holds how many bytes we're expecting to transfer */
-Icc_tdDmaStateEnum Icc_dmaState = ICC_DMA_ERROR;
-Icc_tdTransferInfo Icc_lastTransferInfo = {.targetValid = false, .target = 0, .length = 0};
+Icc_DmaStateEnum Icc_dmaState = ICC_DMA_ERROR;
+Icc_TransferInfo Icc_lastTransferInfo = {.targetValid = false, .target = 0, .length = 0};
 uint8_t Icc_targetInfoBuffer[ICC_TARGET_INFO_BUFFER_LENGTH]; //because its shared between two functions now, saves memory
 
 SPI_HandleTypeDef* Icc_spiHandle = NULL;
@@ -50,7 +50,7 @@ static void Icc_iccTransmitCompleteCallback(void);
 static void Icc_assertDataWaiting(void);
 static bool Icc_checkForDataWaiting(void);
 //there is no clear, check for data waiting will clear as-needed
-static Icc_tdTargetInfo* Icc_lookupTargetInfo(uint8_t target);
+static Icc_TargetInfo* Icc_lookupTargetInfo(uint8_t target);
 static void Icc_preparePowerMode(void);
 static void Icc_prepareLastTransferInfo(uint8_t target);
 static void Icc_prepareTargetList(uint16_t len);
@@ -59,7 +59,7 @@ static void Icc_setPowerMode(uint8_t mode);
 static void Icc_setUSBEnabled(bool isUSBEnabled);
 static HAL_StatusTypeDef Icc_setupHeaderReceive(void);
 
-Icc_tdTargetInfo Icc_targetLEDs = {
+Icc_TargetInfo Icc_targetLEDs = {
         .number = ICC_TARGET_LEDS,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -75,7 +75,7 @@ Icc_tdTargetInfo Icc_targetLEDs = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo Icc_targetTunnel = {
+Icc_TargetInfo Icc_targetTunnel = {
         .number = ICC_TARGET_TUNNEL,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -91,7 +91,7 @@ Icc_tdTargetInfo Icc_targetTunnel = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo Icc_targetU2f = {
+Icc_TargetInfo Icc_targetU2f = {
         .number = ICC_TARGET_U2F,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -107,7 +107,7 @@ Icc_tdTargetInfo Icc_targetU2f = {
         .txCompleteCallback = NULL
 };
 
-Icc_tdTargetInfo Icc_targetHotkey = {
+Icc_TargetInfo Icc_targetHotkey = {
         .number = ICC_TARGET_HOTKEY,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -122,7 +122,7 @@ Icc_tdTargetInfo Icc_targetHotkey = {
         .rxCallback = NULL,
         .txCompleteCallback = NULL
 };
-Icc_tdTargetInfo Icc_targetIcc = {
+Icc_TargetInfo Icc_targetIcc = {
         .number = ICC_TARGET_ICC,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -137,7 +137,7 @@ Icc_tdTargetInfo Icc_targetIcc = {
         .txCompleteCallback = Icc_iccTransmitCompleteCallback
 };
 
-Icc_tdTargetInfo* Icc_targetInfoList[ICC_NUM_TARGETS] = {
+Icc_TargetInfo* Icc_targetInfoList[ICC_NUM_TARGETS] = {
         &Icc_targetIcc,
         &Icc_targetLEDs,
         &Icc_targetTunnel,
@@ -218,7 +218,7 @@ void Icc_start(void) {
  * param txCompleteCallback a pointer to the function to call when a transmission to the secure micro has been completed, can be NULL if notification is required.
  */
 bool Icc_setupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bool (*rxCallback)(uint8_t*, uint16_t), uint16_t maxTxLen, void (*txCompleteCallback)(void)) {
-    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target);
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target);
     if(targetInfo == NULL) {
         return false;
     } else {
@@ -366,7 +366,7 @@ void Icc_dmaTxCompleteCallback(void) {
  * this will release it
  */
 void ICC_ReleaseInBuffer(uint8_t target) {
-    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
     if(targetInfo->inBufferState == ICC_BUFFER_STATE_PROCESSING) { //only release if its in the processing state
         targetInfo->inBufferState = ICC_BUFFER_STATE_READY;
 #ifdef DEBUG_ICC
@@ -378,7 +378,7 @@ void ICC_ReleaseInBuffer(uint8_t target) {
     }
 }
 
-Icc_tdTargetInfo* Icc_lookupTargetInfo(uint8_t target) {
+Icc_TargetInfo* Icc_lookupTargetInfo(uint8_t target) {
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
         if(Icc_targetInfoList[i]->number == (target & ICC_TARGET_NUMBER_MASK)) { //mask off direction bit
             return Icc_targetInfoList[i];
@@ -424,7 +424,7 @@ void Icc_headerHandler(uint8_t header[ICC_HEADER_LENGTH]) {
     uint8_t target = header[ICC_HEADER_TARGET_POS];
     uint8_t command = header[ICC_HEADER_COMMAND_POS];
     uint16_t length = ((uint16_t) header[ICC_HEADER_LENGTH_MSB_POS] << 8) + header[ICC_HEADER_LENGTH_LSB_POS];
-    Icc_tdTargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
     UartDebug_sendString("ICC Header Received: ");
     UartDebug_hexdump(header, ICC_HEADER_LENGTH);
     if(targetInfo == NULL) {
@@ -636,7 +636,7 @@ void Icc_preparePowerMode(void) {
 
 void Icc_prepareLastTransferInfo(uint8_t targetNum) {
     static uint8_t lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_LEN];
-    Icc_tdTargetInfo* target = Icc_lookupTargetInfo(targetNum);
+    Icc_TargetInfo* target = Icc_lookupTargetInfo(targetNum);
     if(NULL != target) {
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_TARGET_POS] = target->lastTransferDirection | target->number;
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_VALID_POS] = true;

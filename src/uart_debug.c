@@ -233,7 +233,6 @@ void UartDebug_sendline(char* str) {
         }
     }
     UartDebug_addToBuffer((uint8_t*) str, len + 1); // to account for the newline char/
-    uart_debug_carriageReturn();
     UartDebug_newline();
 
 }

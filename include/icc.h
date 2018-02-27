@@ -68,7 +68,7 @@ typedef enum tdICC_BufferState {
     ICC_BUFFER_STATE_READY, /* ready to send/receive */
     ICC_BUFFER_STATE_DMA, /* owned by the DMA controller, being sent/received from the secure micro as appropriate to the buffer */
     ICC_BUFFER_STATE_PROCESSING /* in processing by something local */
-} Icc_tdBufferState;
+} Icc_BufferState;
 
 typedef enum tdICC_DMAStateEnum {
     ICC_DMA_ERROR,
@@ -76,13 +76,13 @@ typedef enum tdICC_DMAStateEnum {
     ICC_DMA_IDLE,
     ICC_DMA_RECEIVE,
     ICC_DMA_TRANSMIT
-}Icc_tdDmaStateEnum;
+}Icc_DmaStateEnum;
 
 typedef struct tdICC_TransferInfo {
     bool targetValid; /* if the target is valid */
     uint8_t target; /* target, even if invalid */
     uint16_t length; /* transfer length */
-} Icc_tdTransferInfo;
+} Icc_TransferInfo;
 
 /* remember, for us, tx = out
  * rx = in
@@ -94,14 +94,14 @@ typedef struct tdICC_TargetInfo {
     uint8_t* inBuffer; /* in direction buffer, this is local to us, but size may vary */
     uint16_t inBufferLen; /* bytes available in the in buffer */
     uint16_t inBufferLenMax; /* maximum length of the in buffer */
-    Icc_tdBufferState inBufferState; /* state of the in buffer */
+    Icc_BufferState inBufferState; /* state of the in buffer */
     uint8_t* outBuffer; /* out direction buffer, pointer to buffer provided by other subsystem*/
     uint16_t outBufferLen; /* bytes available in the out buffer */
     uint16_t outBufferLenMax; /* maximum length of an outgoing transfer, can be zero */
-    Icc_tdBufferState outBufferState; /* state of the out buffer */
+    Icc_BufferState outBufferState; /* state of the out buffer */
     void (*txCompleteCallback) (void); /* transmit function callback */
     bool (*rxCallback) (uint8_t*, uint16_t); /* receive function callback. return true to keep buffer ownership, false to release buffer on return */
-} Icc_tdTargetInfo;
+} Icc_TargetInfo;
 
 
 void Icc_init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPin, GPIO_TypeDef* IRQPort, uint16_t IRQPin);

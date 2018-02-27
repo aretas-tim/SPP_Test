@@ -83,14 +83,14 @@ RTC_HandleTypeDef hrtc;
 
 volatile uint32_t ticks = 0;
 
-AuthData_tdCombinedStore authDataStore;
-TransportTunnel tunnel;
+AuthData_CombinedStore authDataStore;
+TunnelStructures_TransportTunnel tunnel;
 size_t commRxBufferNeeded = TUNNEL_HEADER_LEN;
 uint8_t commRxInHeader = true;
-TUNNEL_BUFFER_CTX commandInFlight;
+TunnelStructures_TunnelBufferCtx commandInFlight;
 
-WorkStatus statusWork = WORK_WORKING;
-LockStatus statusLock = LOCK_LOCKED;
+Status_WorkStatus statusWork = WORK_WORKING;
+Status_LockStatus statusLock = LOCK_LOCKED;
 
 volatile uint8_t doUnlockFlag = false;
 volatile uint8_t doEnterPinFlag = false;
@@ -103,7 +103,7 @@ bool testAddEntryFlag = false;
 
 /* Private function prototypes -----------------------------------------------*/
 
-uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight);
+uint8_t getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight);
 //test stuff
 void testCallback(void);
 
@@ -215,7 +215,7 @@ void testCallback(void) {
  * to boot this out to be thread-safe and support multiple invocations, need to pack the state (static variables, buffers, function pointers, etc)
  * in to a context struct
  */
-uint8_t getCommand(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* commandInFlight) {
+uint8_t getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight) {
 #ifdef ARGLE /*ifdeffed out so this compiles whlie we're working on it. probably going to do this differently anyway*/
 #define SRAM2_TUNNEL_RX_BUFF_LEN 0
     static uint8_t commandReceiveBuffer[TUNNEL_HEADER_LEN]; //don't need to keep more than the header locally, everything else can be read out in to the command buffer context

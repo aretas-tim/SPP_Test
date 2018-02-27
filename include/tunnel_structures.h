@@ -33,7 +33,7 @@ typedef struct TDTransportTunnel {
     uint64_t blocksEncrypted; /* keep track of how much we encrypt so we know when to toss the session for fear of reusing a counter value*/
     mbedtls_aes_context aesctx;
     uint16_t (*sendFunc)(uint8_t* data, uint16_t len);
-} TransportTunnel;
+} TunnelStructures_TransportTunnel;
 
 typedef struct tdTUNNEL_BUFFER_CTX {
     uint16_t tag;
@@ -51,7 +51,7 @@ typedef struct tdTUNNEL_BUFFER_CTX {
     mbedtls_md_context_t hmacctx;
     mbedtls_sha256_context hmac_digest_ctx;
     uint8_t hmac_hmac_ctx[64 * 2]; //see md.c line 235. can't use it directly so we have to fix it.
-} TUNNEL_BUFFER_CTX;
+} TunnelStructures_TunnelBufferCtx;
 
 
 

@@ -14,10 +14,10 @@
 #include "utilities.h"
 #include "backup_regs.h"
 
-extern LockStatus statusLock;
-extern WorkStatus statusWork;
+extern Status_LockStatus statusLock;
+extern Status_WorkStatus statusWork;
 extern ADC_HandleTypeDef hadc;
-TUNNEL_BUFFER_CTX tunnelBuffer; /* there can be only one!*/
+TunnelStructures_TunnelBufferCtx tunnelBuffer; /* there can be only one!*/
 
 //@TODO remove these when we gut the tunnel handler
 #define SRAM2_TUNNEL_COMMAND_BUFF_LEN 2048
@@ -25,12 +25,12 @@ uint8_t SRAM2_TUNNEL_FIFO[SRAM2_TUNNEL_COMMAND_BUFF_LEN];
 uint8_t SRAM2_TUNNEL_COMMAND_BUFF[SRAM2_TUNNEL_COMMAND_BUFF_LEN];
 
 
-TUNNEL_BUFFER_CTX* TUNNEL_GetBufferPtr() {
+TunnelStructures_TunnelBufferCtx* TUNNEL_GetBufferPtr() {
     return &tunnelBuffer;
 }
 
 
-void TUNNEL_Init(TransportTunnel* tunnel, uint16_t (*tunnelSendFunc)(uint8_t* data, uint16_t len)) {
+void TUNNEL_Init(TunnelStructures_TransportTunnel* tunnel, uint16_t (*tunnelSendFunc)(uint8_t* data, uint16_t len)) {
     memset(tunnel->nonceEven, 0, TUNNEL_NONCE_LENGTH);
     memset(tunnel->nonceOdd, 0, TUNNEL_NONCE_LENGTH);
     memset(tunnel->sessionCounter, 0, TUNNEL_COUNTER_LENGTH);
@@ -41,14 +41,14 @@ void TUNNEL_Init(TransportTunnel* tunnel, uint16_t (*tunnelSendFunc)(uint8_t* da
     tunnel->sendFunc = tunnelSendFunc; //send stuff out here. function pointer to decouple it from the UART or USB
 }
 
-void TUNNEL_End(TransportTunnel* tunnel) {
+void TUNNEL_End(TunnelStructures_TransportTunnel* tunnel) {
     mbedtls_aes_free(&(tunnel->aesctx));
     TUNNEL_Init(tunnel, tunnel->sendFunc); /*change this if the init routine changes*/
     //don't overwrite the function pointer though!
     LED_SetTunnelEstablished(false);
 }
 
-void TUNNEL_Dump(TransportTunnel* tunnel) {
+void TUNNEL_Dump(TunnelStructures_TransportTunnel* tunnel) {
 #ifdef DEBUG
     UartDebug_sendline("Transport Tunnel Dump:\n");
     UartDebug_sendline("Session Key:\n");
@@ -69,7 +69,7 @@ void TUNNEL_Dump(TransportTunnel* tunnel) {
 }
 
 /* basic loopback test. will take the decrypted parameters in cbuff and return them */
-void TUNNEL_Test(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+void TUNNEL_Test(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
 #ifdef DEBUG
     if(!cbuff->authOkay) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_AUTHFAIL);
@@ -105,7 +105,7 @@ void TUNNEL_Test(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
  * this function will spin while codeEntryCompleteFlag is FALSE
  * timeout sets a maximum time out, in milliseconds (via HAL calls). if this is exceeded, it returns failure to the host
  */
-int32_t TUNNEL_ORD_InitHandler(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, volatile uint8_t* codeEntryCompleteFlag, size_t (*getOTCFunc)(unsigned char*, size_t), uint32_t timeout) {
+int32_t TUNNEL_ORD_InitHandler(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, volatile uint8_t* codeEntryCompleteFlag, size_t (*getOTCFunc)(unsigned char*, size_t), uint32_t timeout) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -190,7 +190,7 @@ uint32_t TUNNEL_DeriveSessionKey(uint8_t* derivedKey, uint8_t* derivedCounter, u
  *
  * if there is no transportKey or the transportKey is not valid it returns an error message.
  */
-int32_t TUNNEL_InitHandler(TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* otc, size_t otcLen) {
+int32_t TUNNEL_InitHandler(TunnelStructures_TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* otc, size_t otcLen) {
     if (tunnel->sessionAlive) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_SESSION_EXISTS);
         LED_SetTunnelEstablished(true);
@@ -241,7 +241,7 @@ int32_t TUNNEL_InitHandler(TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* o
  * basically a handy way to send error messages
  * if the responseCode is *not* TUNNEL_RSP_SUCCESS or TUNNEL_RSP_SESSION_EXISTS, it will end the tunnel
  */
-int32_t TUNNEL_SendShortClear(TransportTunnel* tunnel, uint32_t responseCode) {
+int32_t TUNNEL_SendShortClear(TunnelStructures_TransportTunnel* tunnel, uint32_t responseCode) {
     TUNNEL_BufferInit(&tunnelBuffer);
     //TUNNEL_BufferExtend16(&tunnelBuffer, TUNNEL_TAG_RSP_CLEAR, 0);
     //TUNNEL_BufferExtend32(&tunnelBuffer, 12, 0); /* fixed length*/
@@ -259,7 +259,7 @@ int32_t TUNNEL_SendShortClear(TransportTunnel* tunnel, uint32_t responseCode) {
  * sends a short (no data) response back to the host
  * basically a handy way to send TUNNEL_RSP_SUCCESS or pass on error codes that don't call for the tunnel to be ended
  */
-int32_t TUNNEL_SendShortEnc(TransportTunnel* tunnel, uint32_t commandCode, uint32_t responseCode) {
+int32_t TUNNEL_SendShortEnc(TunnelStructures_TransportTunnel* tunnel, uint32_t commandCode, uint32_t responseCode) {
     TUNNEL_BufferInit(&tunnelBuffer);
     /*TUNNEL_BufferExtend16(&tunnelBuffer, TUNNEL_TAG_RSP_ENC, 0);
     TUNNEL_BufferExtend32(&tunnelBuffer, 76, 0); // fixed length
@@ -271,7 +271,7 @@ int32_t TUNNEL_SendShortEnc(TransportTunnel* tunnel, uint32_t commandCode, uint3
     return 0;
 }
 
-void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_t responseCode, uint32_t commandCode, uint8_t authorized) {
+void TUNNEL_BufferSend(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff, uint32_t responseCode, uint32_t commandCode, uint8_t authorized) {
     uint32_t SIZE_OF_UINT32 = 4; //bytes. @TODO clean this up
     uint8_t temp[SIZE_OF_UINT32];
     uint8_t* fifo = (uint8_t*) SRAM2_TUNNEL_FIFO;
@@ -380,7 +380,7 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
     return;
 }
 
-void TUNNEL_BufferInit(TUNNEL_BUFFER_CTX* buff) {
+void TUNNEL_BufferInit(TunnelStructures_TunnelBufferCtx* buff) {
     buff->paramHead = 0;
     buff->params = (uint8_t*) SRAM2_TUNNEL_COMMAND_BUFF;
 
@@ -401,7 +401,7 @@ void TUNNEL_BufferInit(TUNNEL_BUFFER_CTX* buff) {
     buff->hmacctx.md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
 }
 
-void TUNNEL_BufferFree(TUNNEL_BUFFER_CTX* buff) {
+void TUNNEL_BufferFree(TunnelStructures_TunnelBufferCtx* buff) {
     buff->digested = 0;
     buff->hasAuth = 0;
     buff->paramHead = 0;
@@ -411,7 +411,7 @@ void TUNNEL_BufferFree(TUNNEL_BUFFER_CTX* buff) {
     memset(buff->digest, 0, TUNNEL_NONCE_LENGTH);
 }
 /* 2016-05-16 digestable removed. parameters are ALWAYS digestable and this is now handled by TUNNEL_BufferSend() directly */
-size_t TUNNEL_BufferExtend(TUNNEL_BUFFER_CTX* buff, uint8_t* in, size_t len) {
+size_t TUNNEL_BufferExtend(TunnelStructures_TunnelBufferCtx* buff, uint8_t* in, size_t len) {
     if(SRAM2_TUNNEL_COMMAND_BUFF_LEN < (buff->paramHead + len)) {
         len = SRAM2_TUNNEL_COMMAND_BUFF_LEN - buff->paramHead; //prevent buffer overflow
 #ifdef DEBUG
@@ -422,33 +422,33 @@ size_t TUNNEL_BufferExtend(TUNNEL_BUFFER_CTX* buff, uint8_t* in, size_t len) {
     buff->paramHead += len;
     return len;
 }
-void TUNNEL_BufferExtendDigestOnly(TUNNEL_BUFFER_CTX* buff, uint8_t* in, size_t len) {
+void TUNNEL_BufferExtendDigestOnly(TunnelStructures_TunnelBufferCtx* buff, uint8_t* in, size_t len) {
     mbedtls_sha256_update(&(buff->digestctx), in, len);
     return;
 }
-size_t TUNNEL_BufferExtend8(TUNNEL_BUFFER_CTX* buff, uint8_t in) {
+size_t TUNNEL_BufferExtend8(TunnelStructures_TunnelBufferCtx* buff, uint8_t in) {
     size_t len = 1;
     return TUNNEL_BufferExtend(buff, &in, len);
 }
-size_t TUNNEL_BufferExtend16(TUNNEL_BUFFER_CTX* buff, uint16_t in) {
+size_t TUNNEL_BufferExtend16(TunnelStructures_TunnelBufferCtx* buff, uint16_t in) {
     size_t len = 2;
     uint8_t temp[len];
     Utilities_packToBuffer16(temp, 0, in);
     return TUNNEL_BufferExtend(buff, temp, len);
 }
-size_t TUNNEL_BufferExtend32(TUNNEL_BUFFER_CTX* buff, uint32_t in) {
+size_t TUNNEL_BufferExtend32(TunnelStructures_TunnelBufferCtx* buff, uint32_t in) {
     size_t len = 4;
     uint8_t temp[len];
     Utilities_packToBuffer32(temp, 0, in);
     return TUNNEL_BufferExtend(buff, temp, len);
 }
 /* does not check for overflow*/
-size_t TUNNEL_BufferExtendStructure(TUNNEL_BUFFER_CTX* buff, size_t (*packFunction)(uint8_t*, void*), void* structure) {
+size_t TUNNEL_BufferExtendStructure(TunnelStructures_TunnelBufferCtx* buff, size_t (*packFunction)(uint8_t*, void*), void* structure) {
     size_t len = packFunction(buff->params + buff->paramHead, structure);
     buff->paramHead += len;
     return len;
 }
-void TUNNEL_BufferExtendDigestOnly32(TUNNEL_BUFFER_CTX* buff, uint32_t in) {
+void TUNNEL_BufferExtendDigestOnly32(TunnelStructures_TunnelBufferCtx* buff, uint32_t in) {
     size_t len = 4;
     uint8_t temp[len];
     Utilities_packToBuffer32(temp, 0, in);
@@ -456,23 +456,23 @@ void TUNNEL_BufferExtendDigestOnly32(TUNNEL_BUFFER_CTX* buff, uint32_t in) {
     return;
 }
 //legacy code, no longer used, will just put 4 bytes of 0x00 in the parameter buffer
-size_t TUNNEL_BufferLengthField(TUNNEL_BUFFER_CTX* buff) {
+size_t TUNNEL_BufferLengthField(TunnelStructures_TunnelBufferCtx* buff) {
     return TUNNEL_BufferExtend32(buff, 0);
 }
 
 /* these three do not check for overrun */
 /* gets a uint8_t from the paramater buffer, advances the internal extractHead */
-uint8_t TUNNEL_BufferExtract8(TUNNEL_BUFFER_CTX* buff) {
+uint8_t TUNNEL_BufferExtract8(TunnelStructures_TunnelBufferCtx* buff) {
     return buff->params[(buff->extractHead)++];
 }
 
-uint16_t TUNNEL_BufferExtract16(TUNNEL_BUFFER_CTX* buff) {
+uint16_t TUNNEL_BufferExtract16(TunnelStructures_TunnelBufferCtx* buff) {
     uint16_t val = buff->params[(buff->extractHead)++] << 8;
     val += buff->params[(buff->extractHead)++];
     return val;
 }
 
-uint32_t TUNNEL_BufferExtract32(TUNNEL_BUFFER_CTX* buff) {
+uint32_t TUNNEL_BufferExtract32(TunnelStructures_TunnelBufferCtx* buff) {
     uint32_t val = buff->params[(buff->extractHead)++] << 24;
     val += buff->params[(buff->extractHead)++] << 16;
     val += buff->params[(buff->extractHead)++] << 8;
@@ -483,7 +483,7 @@ uint32_t TUNNEL_BufferExtract32(TUNNEL_BUFFER_CTX* buff) {
 /* extracts a buffer of length len from the parameter buffer
  * will check for overrun and not exceed the length of its internal data
  * returns the actual extracted length */
-size_t TUNNEL_BufferExtractBuffer(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t len) {
+size_t TUNNEL_BufferExtractBuffer(TunnelStructures_TunnelBufferCtx* buff, uint8_t* out, size_t len) {
     if(buff->paramHead < (len + buff->extractHead)) { //paramHead holds the length of the param buffer
         len = buff->paramHead - buff->extractHead;
     }
@@ -497,7 +497,7 @@ size_t TUNNEL_BufferExtractBuffer(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t 
  * returns the structure extraction result (usually the length, or a negative error code)
  * @TODO: if we ever move to C++, this is a prime place to rework it so the structure can extract itself with a .extract(buff) function
  */
-int32_t TUNNEL_BufferExtractStructure(TUNNEL_BUFFER_CTX* buff, int32_t (*extractFunc)(void*, uint8_t*), void* structure) {
+int32_t TUNNEL_BufferExtractStructure(TunnelStructures_TunnelBufferCtx* buff, int32_t (*extractFunc)(void*, uint8_t*), void* structure) {
     int32_t extractedLen = extractFunc(structure, buff->params + buff->extractHead);
     if(extractedLen >= 0) {
         buff->extractHead += extractedLen;
@@ -512,13 +512,13 @@ int32_t TUNNEL_BufferExtractStructure(TUNNEL_BUFFER_CTX* buff, int32_t (*extract
     return extractedLen;
 }
  /* legacy code */
-void TUNNEL_BufferDigest(TUNNEL_BUFFER_CTX* buff) {
+void TUNNEL_BufferDigest(TunnelStructures_TunnelBufferCtx* buff) {
     mbedtls_sha256_finish(&(buff->digestctx), buff->digest);
     buff->digested = 1;
 }
 
 /* legacy code */
-int32_t TUNNEL_BufferMakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff) {
+int32_t TUNNEL_BufferMakeAuthSection(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff) {
     if(!(buff->digested)) {
         TUNNEL_BufferDigest(buff);
     }
@@ -533,7 +533,7 @@ int32_t TUNNEL_BufferMakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX*
  * fills in the nonceEven field in tunnel
  * and the authSection
  */
-int32_t TUNNEL_MakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff) {
+int32_t TUNNEL_MakeAuthSection(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff) {
     uint8_t hmacBuff[TUNNEL_HASH_LENGTH + (TUNNEL_NONCE_LENGTH * 2)]; /* temp buffer for the hmac*/
     memcpy(hmacBuff, buff->digest, TUNNEL_HASH_LENGTH); /* start with the (already computed) digest*/
     Utilities_getRandomBuff(NULL, tunnel->nonceEven, TUNNEL_NONCE_LENGTH); /* get a new nonce*/
@@ -560,14 +560,14 @@ int32_t TUNNEL_MakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff)
     return 0;
 }
 
-int32_t TUNNEL_BufferHandleAuthSection(TUNNEL_BUFFER_CTX* buff, uint8_t* authSection, TransportTunnel* tunnel) {
+int32_t TUNNEL_BufferHandleAuthSection(TunnelStructures_TunnelBufferCtx* buff, uint8_t* authSection, TunnelStructures_TransportTunnel* tunnel) {
     if(!(buff->digested)) {
         TUNNEL_BufferDigest(buff);
     }
     return TUNNEL_VerifyAuthCommand(tunnel, authSection, buff->digest);
 }
 
-size_t TUNNEL_BufferGet(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t lenMax) {
+size_t TUNNEL_BufferGet(TunnelStructures_TunnelBufferCtx* buff, uint8_t* out, size_t lenMax) {
     size_t head = 0;
     size_t len = buff->paramHead;
     if(buff->hasAuth) {
@@ -586,7 +586,7 @@ size_t TUNNEL_BufferGet(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t lenMax) {
     return head;
 }
 
-size_t TUNNEL_BufferCalcLength(TUNNEL_BUFFER_CTX* buff) {
+size_t TUNNEL_BufferCalcLength(TunnelStructures_TunnelBufferCtx* buff) {
     Utilities_packToBuffer32(buff->params, TUNNEL_POS_LEN, buff->paramHead);
     return buff->paramHead;
 }
@@ -609,7 +609,7 @@ void freeCommandBuffer(CommandBuffer* buffer) {
 
 }*/
 
-size_t TUNNEL_AES_CTR_CryptInPlace(TransportTunnel* tunnel, uint8_t* buffer, size_t len) {
+size_t TUNNEL_AES_CTR_CryptInPlace(TunnelStructures_TransportTunnel* tunnel, uint8_t* buffer, size_t len) {
     uint32_t AES_BLOCK_SIZE = 16; //@TODO de-magic this again
     size_t pos = 0;
     uint8_t temp[AES_BLOCK_SIZE];
@@ -630,7 +630,7 @@ size_t TUNNEL_AES_CTR_CryptInPlace(TransportTunnel* tunnel, uint8_t* buffer, siz
 
 #ifdef TPM_TUNNEL_COMMANDS
 /* define space makes its own authsession, as it ends immediately once the space is defined (due to authdata insertion)*/
-uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore) {
+uint32_t TUNNEL_TPM_NV_DefineSpace(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -695,7 +695,7 @@ uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* c
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c) {
+uint32_t TUNNEL_TPM_GetCapability(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c) {
     if(cbuff->paramHead < TUNNEL_ORD_TPM_GET_CAPABILITY_PLEN) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_LENGTH);
     } /*
@@ -720,7 +720,7 @@ uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cb
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_GetCapabilityOwner(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -756,7 +756,7 @@ uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CT
 
     return TUNNEL_RSP_SUCCESS;
 }
-uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_NV_Write(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -785,7 +785,7 @@ uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, 
     return -1;
 }
 
-uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthData_tdAuthDataStore* authDataStore/*, AuthSession* as*/) {
+uint32_t TUNNEL_TPM_NV_Read(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -830,7 +830,7 @@ uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I
 }
 #endif /* TPM_TUNNEL_COMMANDS */
 
-uint32_t TUNNEL_RTC_Set(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc) {
+uint32_t TUNNEL_RTC_Set(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, RTC_HandleTypeDef* hrtc) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -871,7 +871,7 @@ uint32_t TUNNEL_RTC_Set(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_H
     }
 }
 
-uint32_t TUNNEL_RTC_Get(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc) {
+uint32_t TUNNEL_RTC_Get(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, RTC_HandleTypeDef* hrtc) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -909,7 +909,7 @@ uint32_t TUNNEL_RTC_Get(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_H
  * any checking of if the TPM is already owned is left to the caller, this simply reads the command parameters and updates the passed-in TPM_KEY12 struct
  */
 
-uint32_t TUNNEL_Setup_SRK(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff/*, TPM_KEY12* srk*/) {
+uint32_t TUNNEL_Setup_SRK(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff/*, TPM_KEY12* srk*/) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -966,7 +966,7 @@ uint32_t TUNNEL_Setup_SRK(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff/*, T
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_DAMSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c) {
+uint32_t TUNNEL_TPM_DAMSetup(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -993,7 +993,7 @@ uint32_t TUNNEL_TPM_DAMSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, 
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_GetPubKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* oiap*/) {
+uint32_t TUNNEL_TPM_GetPubKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* oiap*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1055,7 +1055,7 @@ uint32_t TUNNEL_TPM_GetPubKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff,
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_Seal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX *cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData) {
+uint32_t TUNNEL_TPM_Seal(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx *cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1149,7 +1149,7 @@ uint32_t TUNNEL_TPM_Seal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX *cbuff, I2C_
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_Unseal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* keyAuthSession, AuthSession* dataAuthSession*/) {
+uint32_t TUNNEL_TPM_Unseal(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* keyAuthSession, AuthSession* dataAuthSession*/) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1220,7 +1220,7 @@ uint32_t TUNNEL_TPM_Unseal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_CreateWrapKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData) {
+uint32_t TUNNEL_TPM_CreateWrapKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1280,7 +1280,7 @@ uint32_t TUNNEL_TPM_CreateWrapKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cb
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_TPM_LoadKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c/*, AuthSession* as*/, uint8_t* keyAuthData) {
+uint32_t TUNNEL_TPM_LoadKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c/*, AuthSession* as*/, uint8_t* keyAuthData) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1329,7 +1329,7 @@ uint32_t TUNNEL_TPM_LoadKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I
 }
 #endif /* TPM_TUNNEL_COMMANDS */
 
-uint32_t TUNNEL_GetOTCSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_GetOTCSetup(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1345,7 +1345,7 @@ uint32_t TUNNEL_GetOTCSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
     return TUNNEL_RSP_SUCCESS;
 }
 
-uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_GetVoltages(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     uint16_t resultCounts = Adc_getVBat(&hadc);
     uint8_t chargeEnabled = false;
     uint8_t batteryLow = false;
@@ -1406,7 +1406,7 @@ uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
 }
 
 
-uint32_t TUNNEL_SetupInitial(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_SetupInitial(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1435,7 +1435,7 @@ uint32_t TUNNEL_SetupInitial(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) 
     return setupResult;
 }
 
-uint32_t TUNNEL_OwnerGetConfiguration(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_OwnerGetConfiguration(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1471,7 +1471,7 @@ uint32_t TUNNEL_OwnerGetConfiguration(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX
 
 }
 
-uint32_t TUNNEL_SetupAttackMitigation(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_SetupAttackMitigation(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1496,7 +1496,7 @@ uint32_t TUNNEL_SetupAttackMitigation(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX
     return result;
 
 }
-uint32_t TUNNEL_SetupTunnel(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_SetupTunnel(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1516,7 +1516,7 @@ uint32_t TUNNEL_SetupTunnel(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
 
     return result;
 }
-uint32_t TUNNEL_SetupPINChange(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_SetupPINChange(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;
@@ -1538,7 +1538,7 @@ uint32_t TUNNEL_SetupPINChange(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff
 }
 
 
-uint32_t TUNNEL_SetupRelock(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff) {
+uint32_t TUNNEL_SetupRelock(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff) {
     if(!cbuff->hasAuth) {
         TUNNEL_SendShortClear(tunnel, TUNNEL_RSP_BAD_TAG);
         return TUNNEL_RSP_BAD_TAG;

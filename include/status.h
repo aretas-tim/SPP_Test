@@ -18,7 +18,7 @@ typedef enum TDLockStatus {
     LOCK_PIN_CHANGE_VERIFY_CURRENT,
     LOCK_PIN_CHANGE_ENTER_NEW,
     LOCK_PIN_CHANGE_VERIFY_NEW
-} LockStatus;
+} Status_LockStatus;
 
 
 
@@ -28,7 +28,7 @@ typedef enum TDWorkStatus {
     WORK_AWAKE,
     WORK_WORKING,
     WORK_ERROR /* this is bad */
-} WorkStatus;
+} Status_WorkStatus;
 
 typedef enum TDCommStatus {
     COMM_DISCONNECTED,
@@ -36,13 +36,13 @@ typedef enum TDCommStatus {
     COMM_CONNECTED,
     COMM_ERROR
     /* activity must be handled outside of this struct */
-} CommStatus;
+} Status_CommStatus;
 
 typedef enum TDTunnelStatus {
     TUNNEL_DISCONNECTED,
     TUNNEL_CONNECTED,
     TUNNEL_CONNECTING,
     TUNNEL_ERROR
-} TunnelStatus;
+} Status_TunnelStatus;
 
 #endif /* STATUS_H_ */

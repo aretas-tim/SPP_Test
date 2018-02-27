@@ -24,12 +24,12 @@ typedef struct TDAuthDataStore {
     uint8_t valid;
     uint8_t ownerAuthData[AUTHDATA_LEN];
     uint8_t srkAuthData[AUTHDATA_LEN];
-} AuthData_tdAuthDataStore;
+} AuthData_AuthDataStore;
 
 typedef struct TDKeyStore {
     uint8_t valid;
     uint8_t key[STORAGE_KEY_LEN];
-} AuthData_tdKeyStore;
+} AuthData_KeyStore;
 
 /* use this one when we need to store the salt.
  * mostly this is for the transport keys, as we'll need to provide the salt to the host so they can run their own KDF
@@ -38,17 +38,17 @@ typedef struct TDSaltedKeyStore {
     uint8_t valid;
     uint8_t key[STORAGE_KEY_LEN];
     uint8_t salt[STORAGE_KEY_LEN];
-} AuthData_tdSaltedKeyStore;
+} AuthData_SaltedKeyStore;
 
 typedef struct TDCombinedStore {
-    AuthData_tdAuthDataStore authData;
-    AuthData_tdKeyStore storageKey;
-    AuthData_tdSaltedKeyStore transportKey;
-} AuthData_tdCombinedStore;
+    AuthData_AuthDataStore authData;
+    AuthData_KeyStore storageKey;
+    AuthData_SaltedKeyStore transportKey;
+} AuthData_CombinedStore;
 
 
-void AuthData_initCombinedStore(AuthData_tdCombinedStore* combinedStore);
-void AuthData_validateCombinedStore(AuthData_tdCombinedStore* combinedStore);
-void AuthData_freeCombinedStore(AuthData_tdCombinedStore* combinedStore);
-void AuthData_dumpSaltedKeyStore(AuthData_tdSaltedKeyStore* saltedAuthData_tdKeyStore);
+void AuthData_initCombinedStore(AuthData_CombinedStore* combinedStore);
+void AuthData_validateCombinedStore(AuthData_CombinedStore* combinedStore);
+void AuthData_freeCombinedStore(AuthData_CombinedStore* combinedStore);
+void AuthData_dumpSaltedKeyStore(AuthData_SaltedKeyStore* saltedAuthData_tdKeyStore);
 #endif /* AUTHDATA_STORE_H_ */

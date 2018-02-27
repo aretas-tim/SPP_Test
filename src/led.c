@@ -56,7 +56,7 @@ volatile bool LED_TunnelEstablishing = false;
 volatile bool LED_Bluetooth = false;
 
 
-volatile CommStatus LED_USBStatus = COMM_DISCONNECTED;
+volatile Status_CommStatus LED_USBStatus = COMM_DISCONNECTED;
 volatile LED_AnimationInfo LED_USBInfo = { .isActive = false, .continueAnimation = false, .phaseCounter = 0, .maxPhaseCounter = LED_BLINK_FAST_LEN, .numAnimationsRemaining = 0};
 volatile bool LED_KeypadAltActive = false;
 
@@ -210,19 +210,19 @@ void ledCallback(void) {
     }*/
 }
 
-void LED_UpdateLockStatus(LockStatus l) {
+void LED_UpdateLockStatus(Status_LockStatus l) {
     //LED_LockStatus = l;
 }
 
-void LED_UpdateTunnelStatus(TunnelStatus t) {
+void LED_UpdateTunnelStatus(Status_TunnelStatus t) {
     //LED_TunnelStatus = t;
 }
 
-void LED_UpdateWorkStatus(WorkStatus w) {
+void LED_UpdateWorkStatus(Status_WorkStatus w) {
     //LED_WorkStatus = w;
 }
 
-void LED_UpdateUSBStatus(CommStatus usb) {
+void LED_UpdateUSBStatus(Status_CommStatus usb) {
     LED_USBStatus = usb;
 }
 
@@ -231,7 +231,7 @@ void LED_UpdateUSBActivity() {
     LED_USBStatus = COMM_CONNECTED;
 }
 
-void LED_UpdateBTStatus(CommStatus bt) {
+void LED_UpdateBTStatus(Status_CommStatus bt) {
     //LED_BTStatus = bt;
 }
 
@@ -303,7 +303,7 @@ void LED_DoInitCycle(uint8_t cyclePosition, uint8_t* ledBuffer) {
 /* decluttering helper to handle the lock status LEDs (lock, unlock)
  *
  */
-void LED_DoLockStatus(LockStatus s, uint8_t* ledBuffer) {
+void LED_DoLockStatus(Status_LockStatus s, uint8_t* ledBuffer) {
 #ifdef DEVICE_0_A_1_1_S
     static uint8_t unlockingPhase = 0;
     if(LED_KeypadLocked) {
@@ -433,7 +433,7 @@ void LED_DoUSBStatus(uint8_t* ledBuffer) {
 #endif /*DEVICE_0_A_1_1_S */
 }
 
-void LED_DoHeartbeat(WorkStatus w, uint8_t* ledBuffer) {
+void LED_DoHeartbeat(Status_WorkStatus w, uint8_t* ledBuffer) {
 #ifdef DEVICE_0_A_1_1_S
     static uint8_t workPhase = 0;
     static uint8_t sleepCount = 0;
@@ -658,7 +658,7 @@ void LED_RunEraseBlink(uint8_t* ledBuffer) {
 
 }
 
-void LED_HeartbeatUpdate(LockStatus s, WorkStatus w) {
+void LED_HeartbeatUpdate(Status_LockStatus s, Status_WorkStatus w) {
     if(!LED_Initialized || !LED_IsOn) {
         return; //prevents the timer callback from running this before we're ready.
     }
@@ -761,7 +761,7 @@ void LED_HeartbeatUpdate(LockStatus s, WorkStatus w) {
         }
     }
 #else
-    static LockStatus oldLockStatus = LOCK_LOCKED;
+    static Status_LockStatus oldLockStatus = LOCK_LOCKED;
     if(oldLockStatus != s) { //make things run a bit faster by caching to avoid unpacking the colour
         LED_GetColours(&LED_StatusColour, s);
         oldLockStatus = s;
@@ -785,7 +785,7 @@ void LED_HeartbeatUpdate(LockStatus s, WorkStatus w) {
 #endif /*DEVICE_0_A_1_1_S */
 }
 
-void LED_GetColours(LED_Colour* colour, LockStatus status) {
+void LED_GetColours(LED_Colour* colour, Status_LockStatus status) {
     uint32_t colourValue = LED_COLOUR_WHITE;
     switch (status) {
         case LOCK_LOCKED:

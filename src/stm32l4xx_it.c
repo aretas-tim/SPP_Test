@@ -56,8 +56,8 @@
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 extern UART_HandleTypeDef huart_debug;
-extern WorkStatus statusWork;
-extern LockStatus statusLock;
+extern Status_WorkStatus statusWork;
+extern Status_LockStatus statusLock;
 //extern uint32_t secondTicks;
 extern uint8_t secondTicksUpdated;
 extern I2C_HandleTypeDef hi2c;
