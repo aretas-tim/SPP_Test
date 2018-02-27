@@ -177,7 +177,7 @@ while (1)
 
     }
 
-    if(U2F_HID_IsMessageWaiting()) {
+    if(U2fHid_isMessageWaiting()) {
 
     }
 
@@ -192,7 +192,7 @@ while (1)
             ledOn = true;
         }
 
-        U2F_HID_SecondTick(); //prevents the U2F HID system from locking up due to an unresponsive or ended host process
+        U2fHid_secondTick(); //prevents the U2F HID system from locking up due to an unresponsive or ended host process
         UartDebug_sendline("Second Tick!\n");
 
 

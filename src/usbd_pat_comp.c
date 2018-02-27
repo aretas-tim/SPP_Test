@@ -704,7 +704,7 @@ uint8_t  USBD_PAT_COMP_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
                     U2FHID_FRAME* frame = (U2FHID_FRAME*) hU2FHID->transmitReportBuffer;
                     frame->cont.seq = hU2FHID->nextSequenceNum & TYPE_CONT;
                     if(hU2FHID->transmitBufferLen > U2F_HID_CONT_FRAME_DATA_LEN) {
-                        //*((uint32_t*) hU2FHID->transmitReportBuffer + U2F_HID_CONT_CID_POS) = U2F_HID_ActiveChannelID;
+                        //*((uint32_t*) hU2FHID->transmitReportBuffer + U2F_HID_CONT_CID_POS) = U2fHid_activeChannelID;
                         //channel ID should not need to be updated
                         memcpy(frame->cont.data, hU2FHID->transmitBuffer, U2F_HID_CONT_FRAME_DATA_LEN);
                         //update pointers and counts
@@ -714,7 +714,7 @@ uint8_t  USBD_PAT_COMP_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum) {
                         USBD_LL_Transmit(pdev, U2F_HID_EPIN_ADDR, hU2FHID->transmitReportBuffer, U2F_HID_EPIN_SIZE); //send data
                         LED_UpdateUSBActivity();
                     } else if(hU2FHID->transmitBufferLen > 0) { //not a full packet
-                        //*((uint32_t*) hU2FHID->transmitReportBuffer + U2F_HID_CONT_CID_POS) = U2F_HID_ActiveChannelID;
+                        //*((uint32_t*) hU2FHID->transmitReportBuffer + U2F_HID_CONT_CID_POS) = U2fHid_activeChannelID;
                         //channel ID should not need to be updated
                         memcpy(frame->cont.data, hU2FHID->transmitBuffer, hU2FHID->transmitBufferLen);
                         memset(frame->cont.data + hU2FHID->transmitBufferLen, 0, U2F_HID_CONT_FRAME_DATA_LEN - hU2FHID->transmitBufferLen);

@@ -40,36 +40,34 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 
-static int8_t U2F_HID_Init     (void);
-static int8_t U2F_HID_DeInit   (void);
-static int8_t U2F_HID_OutEvent (uint8_t* report);
-static void U2F_HID_ResponseTransmitComplete(void);
-uint16_t U2F_HID_SendData(uint32_t channel, uint8_t command, uint8_t* data, uint16_t len);
+static int8_t U2fHid_init     (void);
+static int8_t U2fHid_deinit   (void);
+static int8_t U2fHid_outEvent (uint8_t* report);
+static void U2fHid_responseTransmitComplete(void);
+uint16_t U2fHid_sendData(uint32_t channel, uint8_t command, uint8_t* data, uint16_t len);
 
 /* Private variables ---------------------------------------------------------*/
 
 extern USBD_HandleTypeDef hUsbDeviceFS; //so we can send from this file
 
 
-uint8_t U2F_HID_PayloadBuffer[U2F_HID_MAX_PAYLOAD_LEN]; /* cause i guess we have to go all out? there's no "size exceeded" option so this'll just suck up 8k of RAM */
+uint8_t U2fHid_payloadBuffer[U2F_HID_MAX_PAYLOAD_LEN]; /* cause i guess we have to go all out? there's no "size exceeded" option so this'll just suck up 8k of RAM */
 /* there seems to be no downside to allocating channels starting at 1 and just incrementing it
  * given there's no way to deallocate a channel or any channel-specific information that needs to be kept
  */
-uint32_t U2F_HID_LastAllocatedChannel = 0;
-volatile U2F_HID_StateTypeDef U2F_HID_InternalState = U2F_HID_IDLE;
-uint8_t U2F_HID_CommandInFlight = 0; //no command
-uint8_t U2F_HID_ReceiveTimeoutSecondsRemaining = 0;
-uint16_t U2F_HID_ExpectedPayloadLength = 0;
-uint16_t U2F_HID_PayloadReceived = 0;
-uint32_t U2F_HID_ActiveChannelID = 0; /* 0 is inactive */
-uint8_t U2F_HID_NextSequenceNumberExpected = 0; //0 to 127
+uint32_t U2fHid_lastAllocatedChannel = 0;
+volatile U2F_HID_StateTypeDef U2fHid_internalState = U2F_HID_IDLE;
+uint8_t U2fHid_commandInFlight = 0; //no command
+uint8_t U2fHid_receiveTimeoutSecondsRemaining = 0;
+uint16_t U2fHid_expectedPayloadLength = 0;
+uint16_t U2fHid_payloadReceived = 0;
+uint32_t U2fHid_activeChannelID = 0; /* 0 is inactive */
+uint8_t U2fHid_nextSequenceNumberExpected = 0; //0 to 127
 
-/*uint8_t U2F_HID_RequestBuffer[U2F_HID_OUT_BUFFER_LEN];
-size_t U2F_HID_DataOutHead; //write to the head*/
 
-__ALIGN_BEGIN static uint8_t U2F_HID_ReportDesc[USBD_U2F_HID_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t U2fHid_reportDesc[USBD_U2F_HID_REPORT_DESC_SIZE] __ALIGN_END =
 {
-  /* USER CODE BEGIN 0 */
+
   0x06, LOBYTE(FIDO_USAGE_PAGE), HIBYTE(FIDO_USAGE_PAGE), /* usage page 0xFF00 3*/
   0x09, FIDO_USAGE_U2FHID, /* usage 5*/
   0xA1, 0x01, /* collection 1 7*/
@@ -82,23 +80,22 @@ __ALIGN_BEGIN static uint8_t U2F_HID_ReportDesc[USBD_U2F_HID_REPORT_DESC_SIZE] _
   0x95, 0x40, /* report count 22*/ /* change this to change the amount of data sent */
   0x09, FIDO_USAGE_DATA_OUT, /* usage 24*/
   0x91, 0x02, /* output (array) 26*/
-  /* USER CODE END 0 */
   0xC0    /*     END_COLLECTION                 27*/
 
 };
 
 USBD_U2F_HID_ItfTypeDef USBD_U2F_HID_Callbacks =
 {
-        U2F_HID_ReportDesc,
-        U2F_HID_Init,
-        U2F_HID_DeInit,
-        U2F_HID_OutEvent,
-        U2F_HID_ResponseTransmitComplete
+        U2fHid_reportDesc,
+        U2fHid_init,
+        U2fHid_deinit,
+        U2fHid_outEvent,
+        U2fHid_responseTransmitComplete
 };
 /* Private functions ---------------------------------------------------------*/
 
-void U2F_HID_ResetReceive(void);
-void U2F_HID_SendErrorResponse(uint32_t cid, uint8_t errorValue);
+void U2fHid_resetReceive(void);
+void U2fHid_sendErrorResponse(uint32_t cid, uint8_t errorValue);
 
 /**
   * @brief  TEMPLATE_CUSTOM_HID_Init
@@ -106,16 +103,16 @@ void U2F_HID_SendErrorResponse(uint32_t cid, uint8_t errorValue);
   * @param  None
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t U2F_HID_Init(void)
+static int8_t U2fHid_init(void)
 {
-    U2F_HID_LastAllocatedChannel = 0;
-    U2F_HID_InternalState = U2F_HID_IDLE;
-    U2F_HID_CommandInFlight = 0; //no command
-    U2F_HID_ReceiveTimeoutSecondsRemaining = 0;
-    U2F_HID_ExpectedPayloadLength = 0;
-    U2F_HID_PayloadReceived = 0;
-    U2F_HID_ActiveChannelID = 0; /* 0 is inactive */
-    U2F_HID_NextSequenceNumberExpected = 0; //0 to 127
+    U2fHid_lastAllocatedChannel = 0;
+    U2fHid_internalState = U2F_HID_IDLE;
+    U2fHid_commandInFlight = 0; //no command
+    U2fHid_receiveTimeoutSecondsRemaining = 0;
+    U2fHid_expectedPayloadLength = 0;
+    U2fHid_payloadReceived = 0;
+    U2fHid_activeChannelID = 0; /* 0 is inactive */
+    U2fHid_nextSequenceNumberExpected = 0; //0 to 127
   return (0);
 }
 
@@ -125,7 +122,7 @@ static int8_t U2F_HID_Init(void)
   * @param  None
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t U2F_HID_DeInit(void)
+static int8_t U2fHid_deinit(void)
 {
   /*
      Add your deinitialization code here 
@@ -137,13 +134,12 @@ static int8_t U2F_HID_DeInit(void)
 /* call this once a second to keep the U2F HID system from locking up
  *
  */
-void U2F_HID_SecondTick(void) {
-    if((U2F_HID_InternalState == U2F_HID_RECEIVE) && U2F_HID_ReceiveTimeoutSecondsRemaining) {
-        U2F_HID_ReceiveTimeoutSecondsRemaining--;
-        if(0 == U2F_HID_ReceiveTimeoutSecondsRemaining) {
+void U2fHid_secondTick(void) {
+    if((U2fHid_internalState == U2F_HID_RECEIVE) && U2fHid_receiveTimeoutSecondsRemaining) {
+        U2fHid_receiveTimeoutSecondsRemaining--;
+        if(0 == U2fHid_receiveTimeoutSecondsRemaining) {
             //timed out
-            U2F_HID_ResetReceive();
-            //U2F_SendErrorResponse(U2F_HID_ActiveChannelID, ERR_MSG_TIMEOUT);
+            U2fHid_resetReceive();
         }
     }
 }
@@ -151,122 +147,122 @@ void U2F_HID_SecondTick(void) {
 /*
  * resets the multi-packet receive functionality and puts the state machine back in to the idle state
  */
-void U2F_HID_ResetReceive(void) {
-    U2F_HID_PayloadReceived = 0;
-    U2F_HID_NextSequenceNumberExpected = 0;
-    U2F_HID_ExpectedPayloadLength = 0;
-    U2F_HID_ActiveChannelID = 0;
-    U2F_HID_InternalState = U2F_HID_IDLE;
+void U2fHid_resetReceive(void) {
+    U2fHid_payloadReceived = 0;
+    U2fHid_nextSequenceNumberExpected = 0;
+    U2fHid_expectedPayloadLength = 0;
+    U2fHid_activeChannelID = 0;
+    U2fHid_internalState = U2F_HID_IDLE;
 }
 
 /* helper as you can't send a reference to a #define */
-void U2F_HID_SendErrorResponse(uint32_t cid, uint8_t errorValue) {
-    U2F_HID_SendData(cid, U2FHID_ERROR, &errorValue, 1);
+void U2fHid_sendErrorResponse(uint32_t cid, uint8_t errorValue) {
+    U2fHid_sendData(cid, U2FHID_ERROR, &errorValue, 1);
 }
 
 
-uint8_t U2F_HID_HandleContinuationPacket(U2FHID_FRAME* frame) {
-    if(frame->cont.seq == U2F_HID_NextSequenceNumberExpected) {
-        memcpy(U2F_HID_PayloadBuffer + U2F_HID_PayloadReceived, frame->cont.data, U2F_HID_CONT_FRAME_DATA_LEN); //copy data
-        U2F_HID_PayloadReceived += U2F_HID_CONT_FRAME_DATA_LEN; //increase this
-        U2F_HID_NextSequenceNumberExpected++;
-        if(U2F_HID_PayloadReceived >= U2F_HID_ExpectedPayloadLength) {
-            switch(U2F_HID_CommandInFlight) {
+uint8_t U2fHid_handleContinuationPacket(U2FHID_FRAME* frame) {
+    if(frame->cont.seq == U2fHid_nextSequenceNumberExpected) {
+        memcpy(U2fHid_payloadBuffer + U2fHid_payloadReceived, frame->cont.data, U2F_HID_CONT_FRAME_DATA_LEN); //copy data
+        U2fHid_payloadReceived += U2F_HID_CONT_FRAME_DATA_LEN; //increase this
+        U2fHid_nextSequenceNumberExpected++;
+        if(U2fHid_payloadReceived >= U2fHid_expectedPayloadLength) {
+            switch(U2fHid_commandInFlight) {
                 case U2FHID_PING:
                     //have the entirety of a PING command, send it back immediately.
-                    U2F_HID_SendResponse(U2FHID_PING, U2F_HID_PayloadBuffer, U2F_HID_ExpectedPayloadLength);
+                    U2fHid_sendResponse(U2FHID_PING, U2fHid_payloadBuffer, U2fHid_expectedPayloadLength);
                     break;
                 case U2FHID_MSG:
                     //this needs to be handled outside the USB interrupt to keep things moving
-                    U2F_HID_InternalState = U2F_HID_MESSAGE_READY;
+                    U2fHid_internalState = U2F_HID_MESSAGE_READY;
                     break;
                 default:
                     //this should have been caught at the init packet
 #ifdef DEBUG
                     UartDebug_sendline("U2F HID received multi-packet message with unknown command. Aborting.\n");
 #endif /* DEBUG */
-                    U2F_HID_SendErrorResponse(U2F_HID_ActiveChannelID, ERR_INVALID_CMD);
-                    U2F_HID_ResetReceive();
+                    U2fHid_sendErrorResponse(U2fHid_activeChannelID, ERR_INVALID_CMD);
+                    U2fHid_resetReceive();
                     break;
             }
         }
     } else {
         //bad sequence
 
-        U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_SEQ);
-        U2F_HID_ResetReceive();
+        U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_SEQ);
+        U2fHid_resetReceive();
     }
     return 0;
 }
 
-uint8_t U2F_HID_HandleInitiationPacket(U2FHID_FRAME* frame) {
-    U2F_HID_ActiveChannelID = frame->cid;
+uint8_t U2fHid_handleInitiationPacket(U2FHID_FRAME* frame) {
+    U2fHid_activeChannelID = frame->cid;
     uint16_t bcnt = (frame->init.bcnth << 8) + frame->init.bcntl;
     switch(frame->init.cmd) {
         case U2FHID_PING:
             //ping, just send the data back as-is
             if(bcnt <= U2F_HID_INIT_FRAME_DATA_LEN) {
                 //whole thing fits in the init frame, just return it immediately
-                U2F_HID_SendResponse(U2FHID_PING, frame->init.data, bcnt);
+                U2fHid_sendResponse(U2FHID_PING, frame->init.data, bcnt);
             } else {
                 //too long to send back immediately, have to start up the receive engine
-                U2F_HID_InternalState = U2F_HID_RECEIVE;
-                memcpy(U2F_HID_PayloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
-                U2F_HID_ExpectedPayloadLength = bcnt;
-                U2F_HID_PayloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
-                U2F_HID_NextSequenceNumberExpected = 0; //starts at 0 for the first continuation packet
-                U2F_HID_ReceiveTimeoutSecondsRemaining = U2F_HID_RECEIVE_TIMEOUT_SECONDS + 1; // +1 to ensure at least the specified timeout
+                U2fHid_internalState = U2F_HID_RECEIVE;
+                memcpy(U2fHid_payloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
+                U2fHid_expectedPayloadLength = bcnt;
+                U2fHid_payloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
+                U2fHid_nextSequenceNumberExpected = 0; //starts at 0 for the first continuation packet
+                U2fHid_receiveTimeoutSecondsRemaining = U2F_HID_RECEIVE_TIMEOUT_SECONDS + 1; // +1 to ensure at least the specified timeout
             }
-            U2F_HID_CommandInFlight = frame->init.cmd;
+            U2fHid_commandInFlight = frame->init.cmd;
             break;
         case U2FHID_MSG:
             //message, needs to be sent for processing to the U2F subsystem
-            memcpy(U2F_HID_PayloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
-            U2F_HID_ExpectedPayloadLength = bcnt;
-            U2F_HID_PayloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
-            if(U2F_HID_ExpectedPayloadLength <= U2F_HID_INIT_FRAME_DATA_LEN) {
+            memcpy(U2fHid_payloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
+            U2fHid_expectedPayloadLength = bcnt;
+            U2fHid_payloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
+            if(U2fHid_expectedPayloadLength <= U2F_HID_INIT_FRAME_DATA_LEN) {
                 //whole thing fits in the init frame, just return it immediately
-                U2F_HID_InternalState = U2F_HID_MESSAGE_READY;
+                U2fHid_internalState = U2F_HID_MESSAGE_READY;
             } else {
                 //too long to send back immediately, have to start up the receive engine
-                U2F_HID_InternalState = U2F_HID_RECEIVE;
-                U2F_HID_NextSequenceNumberExpected = 0;
-                memcpy(U2F_HID_PayloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
-                U2F_HID_ExpectedPayloadLength = bcnt;
-                U2F_HID_PayloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
-                U2F_HID_ReceiveTimeoutSecondsRemaining = U2F_HID_RECEIVE_TIMEOUT_SECONDS + 1; // +1 to ensure at least the specified timeout
+                U2fHid_internalState = U2F_HID_RECEIVE;
+                U2fHid_nextSequenceNumberExpected = 0;
+                memcpy(U2fHid_payloadBuffer, frame->init.data, U2F_HID_INIT_FRAME_DATA_LEN);
+                U2fHid_expectedPayloadLength = bcnt;
+                U2fHid_payloadReceived = U2F_HID_INIT_FRAME_DATA_LEN;
+                U2fHid_receiveTimeoutSecondsRemaining = U2F_HID_RECEIVE_TIMEOUT_SECONDS + 1; // +1 to ensure at least the specified timeout
             }
-            U2F_HID_CommandInFlight = frame->init.cmd;
+            U2fHid_commandInFlight = frame->init.cmd;
             break;
         case U2FHID_INIT:
             if(frame->cid != CID_BROADCAST) {
                 //not the broadcast channel, this should not happen.
-                U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_CMD);
+                U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_CMD);
             } else if(bcnt == INIT_NONCE_SIZE) { //right payload size for an init
-                memcpy(U2F_HID_PayloadBuffer, frame->init.data, INIT_NONCE_SIZE);
+                memcpy(U2fHid_payloadBuffer, frame->init.data, INIT_NONCE_SIZE);
                 //@TODO clean this up. its horrible
-                U2F_HID_LastAllocatedChannel++; //increment the channel allocation number first
-                *((uint32_t*) (U2F_HID_PayloadBuffer + INIT_NONCE_SIZE)) = U2F_HID_LastAllocatedChannel; //pack the given CID in to the buffer
-                U2F_HID_PayloadBuffer[INIT_NONCE_SIZE + 4] = U2FHID_IF_VERSION;
-                U2F_HID_PayloadBuffer[INIT_NONCE_SIZE + 5] = U2F_HID_DEVICE_VERSION_MAJOR;
-                U2F_HID_PayloadBuffer[INIT_NONCE_SIZE + 6] = U2F_HID_DEVICE_VERSION_MINOR;
-                U2F_HID_PayloadBuffer[INIT_NONCE_SIZE + 7] = U2F_HID_DEVICE_VERSION_BUILD;
-                U2F_HID_PayloadBuffer[INIT_NONCE_SIZE + 8] = CAPFLAG_WINK;
+                U2fHid_lastAllocatedChannel++; //increment the channel allocation number first
+                *((uint32_t*) (U2fHid_payloadBuffer + INIT_NONCE_SIZE)) = U2fHid_lastAllocatedChannel; //pack the given CID in to the buffer
+                U2fHid_payloadBuffer[INIT_NONCE_SIZE + 4] = U2FHID_IF_VERSION;
+                U2fHid_payloadBuffer[INIT_NONCE_SIZE + 5] = U2F_HID_DEVICE_VERSION_MAJOR;
+                U2fHid_payloadBuffer[INIT_NONCE_SIZE + 6] = U2F_HID_DEVICE_VERSION_MINOR;
+                U2fHid_payloadBuffer[INIT_NONCE_SIZE + 7] = U2F_HID_DEVICE_VERSION_BUILD;
+                U2fHid_payloadBuffer[INIT_NONCE_SIZE + 8] = CAPFLAG_WINK;
                 //send the response
-                U2F_HID_SendResponse(U2FHID_INIT, U2F_HID_PayloadBuffer, 17);
+                U2fHid_sendResponse(U2FHID_INIT, U2fHid_payloadBuffer, 17);
             } else {
                 //receive should not have left reset
-                U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_LEN);
+                U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_LEN);
             }
             break;
         case U2FHID_WINK:
             //no parameters, just do it
             LED_DoWink();
-            U2F_HID_SendResponse(U2FHID_WINK, NULL, 0);
+            U2fHid_sendResponse(U2FHID_WINK, NULL, 0);
             break;
         default:
-            U2F_HID_InternalState = U2F_HID_TRANSMIT;
-            U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_CMD);
+            U2fHid_internalState = U2F_HID_TRANSMIT;
+            U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_CMD);
     }
     return 0;
 }
@@ -279,7 +275,7 @@ uint8_t U2F_HID_HandleInitiationPacket(U2FHID_FRAME* frame) {
   * @param  state: event state
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
+static int8_t U2fHid_outEvent  (uint8_t* report ) {
 
 #ifdef DEBUG_U2F
     UartDebug_addToBuffer("U2F USB HID Received:\n", 22);
@@ -291,67 +287,67 @@ static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
     U2FHID_FRAME* frame = (U2FHID_FRAME*) report; //cast it over
 
 
-    if((frame->cid != CID_BROADCAST) && (frame->cid > U2F_HID_LastAllocatedChannel)) {
+    if((frame->cid != CID_BROADCAST) && (frame->cid > U2fHid_lastAllocatedChannel)) {
         //there's no specific error for "not a recognized cid" so.. other
-        U2F_HID_SendErrorResponse(frame->cid, ERR_OTHER);
+        U2fHid_sendErrorResponse(frame->cid, ERR_OTHER);
 #ifdef DEBUG
         UartDebug_sendline("U2F HID Packed received on unallocated channel.\n");
 #endif /* DEBUG */
     }
 
-    if(U2F_HID_InternalState == U2F_HID_RECEIVE) {
+    if(U2fHid_internalState == U2F_HID_RECEIVE) {
         //if we're in the middle of a multi-packet receive
-        if(frame->cid == U2F_HID_ActiveChannelID) {
+        if(frame->cid == U2fHid_activeChannelID) {
             if((frame->type & TYPE_MASK) == TYPE_CONT) {
-                U2F_HID_HandleContinuationPacket(frame);
+                U2fHid_handleContinuationPacket(frame);
             } else if(frame->init.cmd == U2FHID_SYNC) { //if we're not a continuation packet must be an initialization, which is odd
                 //sync request from the host, i.e. reset transaction
-                U2F_HID_InternalState = U2F_HID_TRANSMIT;
-                U2F_HID_ResetReceive();
-                U2F_HID_SendData(frame->cid, U2FHID_SYNC, NULL, 0);
+                U2fHid_internalState = U2F_HID_TRANSMIT;
+                U2fHid_resetReceive();
+                U2fHid_sendData(frame->cid, U2FHID_SYNC, NULL, 0);
             } else { //not a continuation, not a sync, must be an sequencing error
 #ifdef DEBUG
                 UartDebug_sendline("U2F HID Non-Sync Init packet received when cont packet expected.\n");
 #endif /* DEBUG */
                 //the client on the host should re-attempt the entire transmission
-                U2F_HID_InternalState = U2F_HID_TRANSMIT;
-                U2F_HID_ResetReceive();
-                U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_SEQ);
+                U2fHid_internalState = U2F_HID_TRANSMIT;
+                U2fHid_resetReceive();
+                U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_SEQ);
             }
         } else {
             //not the active channel. immediately return that someone else has the channel
-            U2F_HID_SendErrorResponse(frame->cid, ERR_CHANNEL_BUSY);
+            U2fHid_sendErrorResponse(frame->cid, ERR_CHANNEL_BUSY);
 
         }
-    } else if(U2F_HID_InternalState == U2F_HID_IDLE) {
+    } else if(U2fHid_internalState == U2F_HID_IDLE) {
         if((frame->type & TYPE_MASK) == TYPE_INIT) {
-            U2F_HID_HandleInitiationPacket(frame);
+            U2fHid_handleInitiationPacket(frame);
         } /*else {
             //must be a continuation packet with no init, drop it silently
         }*/
-    } else if (U2F_HID_InternalState == U2F_HID_ERROR) {
+    } else if (U2fHid_internalState == U2F_HID_ERROR) {
         //in an internal error state, possibly because we have no storage available
-        U2F_HID_SendErrorResponse(frame->cid, ERR_OTHER);
+        U2fHid_sendErrorResponse(frame->cid, ERR_OTHER);
     } else {
         //any other internal state, including transmit
-        if(frame->cid == U2F_HID_ActiveChannelID) {
+        if(frame->cid == U2fHid_activeChannelID) {
             if(((frame->type & TYPE_MASK) == TYPE_INIT) && (frame->init.cmd == U2FHID_SYNC)) {
                 //sync request from the host, i.e. reset transaction
-                U2F_HID_ResetReceive();
-                U2F_HID_SendResponse(U2FHID_SYNC, NULL, 0);
+                U2fHid_resetReceive();
+                U2fHid_sendResponse(U2FHID_SYNC, NULL, 0);
             } else {
 #ifdef DEBUG
                 UartDebug_sendline("U2F HID Non-Sync Init packet received when no packet expected.\n");
 #endif /* DEBUG */
                 //the client on the host should re-attempt the entire transmission
-                U2F_HID_InternalState = U2F_HID_TRANSMIT;
-                U2F_HID_ResetReceive();
-                U2F_HID_SendErrorResponse(frame->cid, ERR_INVALID_SEQ);
+                U2fHid_internalState = U2F_HID_TRANSMIT;
+                U2fHid_resetReceive();
+                U2fHid_sendErrorResponse(frame->cid, ERR_INVALID_SEQ);
             }
 
         } else {
             //not the active channel. immediately return that someone else has the channel
-            U2F_HID_SendErrorResponse(frame->cid, ERR_CHANNEL_BUSY);
+            U2fHid_sendErrorResponse(frame->cid, ERR_CHANNEL_BUSY);
         }
     }
     return (0);
@@ -362,7 +358,7 @@ static int8_t U2F_HID_OutEvent  (uint8_t* report ) {
  * in theory the response can be delayed indefinitely by badly-behaving software on the host
  * returns the number of bytes queued for transmission, or 0 in case of an error
  */
-uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen) {
+uint16_t U2fHid_sendResponse(uint8_t response, uint8_t* data, uint16_t dataLen) {
 #ifdef USBD_COMPOSITE
     USBD_U2F_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->U2FHIDData);
 #elif USB_STANDALONE_U2F
@@ -391,7 +387,7 @@ uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen)
     //prep the first packet, use the local transmit buffer
     //cast it to a U2FHID_FRAME* to work with it in a more logical fashion
     U2FHID_FRAME* frame = (U2FHID_FRAME*) hhid->transmitReportBuffer;
-    frame->cid = U2F_HID_ActiveChannelID;
+    frame->cid = U2fHid_activeChannelID;
     frame->type = TYPE_INIT;
     frame->init.cmd |= response;
     frame->init.bcnth = dataLen >> 8;
@@ -410,7 +406,7 @@ uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen)
     }
 
 
-    U2F_HID_InternalState = U2F_HID_TRANSMIT;
+    U2fHid_internalState = U2F_HID_TRANSMIT;
     //UartDebug_sendline("USB HID Sent:\n");
     //UartDebug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
     //if the immediate system is not transmitting, send. the dataIn function will take care of the rest.
@@ -427,10 +423,10 @@ uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen)
 
 /* sends bytes to the host
  * this is to be used internally by this file
- * external callers should use U2F_HID_SendResponse, which limits responses to being sent to the active channel and can handle more than an init packet.
+ * external callers should use U2fHid_sendResponse, which limits responses to being sent to the active channel and can handle more than an init packet.
  * this should only be used for preempting responses over SendResponse to prevent excessive queueing of immediate responses
  */
-uint16_t U2F_HID_SendData(uint32_t channel, uint8_t response, uint8_t* data, uint16_t dataLen) {
+uint16_t U2fHid_sendData(uint32_t channel, uint8_t response, uint8_t* data, uint16_t dataLen) {
 
 #ifdef USBD_COMPOSITE
     USBD_U2F_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->U2FHIDData);
@@ -490,29 +486,29 @@ uint16_t U2F_HID_SendData(uint32_t channel, uint8_t response, uint8_t* data, uin
 /* call this from the low-level USB interface when the transmit of a processed command is complete
  * to transition back to an idle state
  */
-static void U2F_HID_ResponseTransmitComplete(void) {
+static void U2fHid_responseTransmitComplete(void) {
 #ifdef DEBUG
-    if(U2F_HID_InternalState != U2F_HID_TRANSMIT) {
+    if(U2fHid_internalState != U2F_HID_TRANSMIT) {
         UartDebug_sendline("U2F HID Transmit Complete called but not in transmit state.\n");
     } else {
         UartDebug_sendline("U2F HID Transmit Complete called.\n");
     }
 #endif /* DEBUG */
-    U2F_HID_ResetReceive(); //call this for now
+    U2fHid_resetReceive(); //call this for now
 }
 
-bool U2F_HID_IsMessageWaiting(void) {
-    return (U2F_HID_InternalState == U2F_HID_MESSAGE_READY);
+bool U2fHid_isMessageWaiting(void) {
+    return (U2fHid_internalState == U2F_HID_MESSAGE_READY);
 }
-uint16_t U2F_HID_GetMessageLength(void) {
-    return U2F_HID_PayloadReceived;
+uint16_t U2fHid_getMessageLength(void) {
+    return U2fHid_payloadReceived;
 }
-uint16_t U2F_HID_ReadMessage(uint8_t* msg, uint16_t maxMsgLen) {
-    uint16_t lenToCopy = U2F_HID_PayloadReceived;
+uint16_t U2fHid_readMessage(uint8_t* msg, uint16_t maxMsgLen) {
+    uint16_t lenToCopy = U2fHid_payloadReceived;
     if(lenToCopy > maxMsgLen) {
         lenToCopy = maxMsgLen;
     }
-    memcpy(msg, U2F_HID_PayloadBuffer, lenToCopy);
+    memcpy(msg, U2fHid_payloadBuffer, lenToCopy);
     return lenToCopy;
 }
 
