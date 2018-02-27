@@ -136,8 +136,8 @@ uint8_t TunnelShim_initContext(TunnelShim_Context* ctx, uint8_t* buffer, uint16_
 
 
     memset(ctx->channelsAllocatedMap, 0, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
-    setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
-    setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 
     ctx->commandInFlight = TUNNEL_SHIM_COMMAND_NONE;
     ctx->currentChannel = 0;
@@ -399,7 +399,7 @@ void TunnelShim_handleRetransmitRequest(TunnelShim_Context* ctx, TunnelShim_Pack
         for(uint16_t i = 0; i < byteCount; ++i) {
             uint8_t packetToRetransmit = packet->initiation.data[i];
             if(packetToRetransmit < ctx->outgoingPacketCount) {
-                clearBitInMap(packetToRetransmit, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+                Utilities_clearBitInMap(packetToRetransmit, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
                 /*if(packetToRetransmit < lowestRetransmittedPacketNum) {
                     lowestRetransmittedPacketNum = packetToRetransmit;
                 }*/
@@ -442,7 +442,7 @@ void TunnelShim_initHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, 
 
     uint8_t initResponse[TUNNEL_SHIM_INIT_NONCE_LEN + 1];
     memcpy(initResponse, packet->initiation.data, TUNNEL_SHIM_INIT_NONCE_LEN);
-    uint32_t unallocatedChannel = getLowestUnsetBitInMap(ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    uint32_t unallocatedChannel = Utilities_getLowestUnsetBitInMap(ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
     if(unallocatedChannel == BITMAP_NO_BIT_FOUND) {
         //can't allocate channel, send back the reserved channel ID which indicates failure
         initResponse[TUNNEL_SHIM_INIT_NONCE_LEN] = TUNNEL_SHIM_CHANNEL_RESERVED;
@@ -452,7 +452,7 @@ void TunnelShim_initHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, 
     } else {
         //allocate the channel and send it back
         initResponse[TUNNEL_SHIM_INIT_NONCE_LEN] = (uint8_t) (unallocatedChannel & 0xFF);
-        setBitInMap(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN], ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+        Utilities_setBitInMap(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN], ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
         UartDebug_sendString("Allocated channel: ");
         UartDebug_printuint8(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN]);
@@ -506,7 +506,7 @@ void TunnelShim_releaseChannel(TunnelShim_Context* ctx, TunnelShim_Packet* packe
 #endif
         //should not be coming in as an immediate
         TunnelShim_doSend(NULL, 0, TUNNEL_SHIM_COMMAND_RELEASE, channel);
-        clearBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+        Utilities_clearBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
     }
 }
 
@@ -658,7 +658,7 @@ void TunnelShim_receiveInitiationPacket(TunnelShim_Context* ctx, TunnelShim_Pack
     if((ctx->currentChannel != TUNNEL_SHIM_CHANNEL_RESERVED) && (channel != ctx->currentChannel)) {
         //drop packet, not for the active channel
         TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, channel);
-    } else if (!(checkBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN))) {
+    } else if (!(Utilities_checkBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN))) {
         //not for us, drop
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
         UartDebug_sendline("Packet Received on unallocated channel. Dropped.\n");
@@ -723,7 +723,7 @@ void TunnelShim_receiveInitiationPacket(TunnelShim_Context* ctx, TunnelShim_Pack
 
             memcpy(ctx->dataBuffer, packet->initiation.data, ctx->packetByteLen - INITIATION_PACKET_OVERHEAD);
             memset(ctx->packetsMap, 0, TUNNEL_SHIM_PACKET_BITMAP_LEN); //clear our packets map
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the initiation packet
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the initiation packet
 
             TunnelShim_sendImmediate(ctx, &numPacketsRequired, 1, TUNNEL_SHIM_COMMAND_ACKNOWLEDGE, ctx->currentChannel);
         }
@@ -742,9 +742,9 @@ void TunnelShim_receiveContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Pa
         uint16_t dataPosition = ctx->packetByteLen - INITIATION_PACKET_OVERHEAD;
         dataPosition += (ctx->packetByteLen - CONTINUATION_PACKET_OVERHEAD) * (packet->continuation.sequence - 1);
         memcpy(ctx->dataBuffer + dataPosition, packet->continuation.data, ctx->packetByteLen - CONTINUATION_PACKET_OVERHEAD);
-        setBitInMap(packet->continuation.sequence, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the packet
+        Utilities_setBitInMap(packet->continuation.sequence, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the packet
         //check if we have all the data
-        uint16_t highestReceivedPacketNum = getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        uint16_t highestReceivedPacketNum = Utilities_getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
         UartDebug_sendString("Received packet ");
         UartDebug_printuint32(highestReceivedPacketNum);
@@ -958,7 +958,7 @@ uint16_t TunnelShim_doSend(TunnelShim_Context* ctx, uint8_t* response, uint16_t 
             ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
             TunnelShim_prepInitPacket(ctx, ctx->packetBuffer);
             ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
             ctx->timeoutActive = true;
             ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
@@ -1138,7 +1138,7 @@ void TunnelShim_checkTimeout(TunnelShim_Context* ctx) {
                     ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
                     TunnelShim_prepInitPacket(ctx, ctx->packetBuffer);
                     ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-                    setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+                    Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
                     ctx->timeoutActive = true;
                     ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
                     ctx->ackWaitCountRemaining = TUNNEL_SHIM_ACK_WAIT_MAX_COUNT;
@@ -1179,8 +1179,8 @@ void TunnelShim_reset(TunnelShim_Context* ctx) {
     }
     TunnelShim_resetTransaction(ctx);
     memset(ctx->channelsAllocatedMap, 0, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
-    setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
-    setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 
     //run the disconnect callback if its set to do any other necessary cleanup
     if(ctx->funcs->disconnectCallback != NULL) {
@@ -1222,7 +1222,7 @@ void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShim_Context* ctx) {
         if(!(ctx->isTransmitting)) {
             ctx->isTransmitting = true;
             ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
             ctx->timeoutActive = true;
             ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
         } //else an immediate transmit is in progress, will get picked up later
@@ -1249,7 +1249,7 @@ bool TunnelShim_getNextContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Pa
 #endif
         return false;
     }
-    uint32_t nextPacketNum32 = getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+    uint32_t nextPacketNum32 = Utilities_getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
     UartDebug_sendString("GetNextContinuationPacket looking at packet: ");
     UartDebug_printuint32(nextPacketNum32);
@@ -1279,7 +1279,7 @@ bool TunnelShim_getNextContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Pa
             //*outgoingPacket = NULL;
             return false;
         }
-        setBitInMap(nextPacketNum, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        Utilities_setBitInMap(nextPacketNum, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
         UartDebug_sendString("GetNextContinuationPacket: Sending Packet #");
         UartDebug_printuint32(nextPacketNum32);
@@ -1336,7 +1336,7 @@ bool TunnelShim_getNextPacket(TunnelShim_Context* ctx, TunnelShim_Packet* outgoi
         packetReady = true;
     } else if (ctx->state == TUNNEL_SHIM_TRANSMIT_INIT) {
         TunnelShim_prepInitPacket(ctx, outgoingPacket);
-        setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
         //*outgoingPacket = ctx->packetBuffer;
         ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
         ctx->timeoutActive = true;

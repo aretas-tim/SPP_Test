@@ -141,7 +141,7 @@ int32_t Utilities_tpmAesCtrCrypt(mbedtls_aes_context* ctx, size_t length, uint8_
     return( 0 );
 }
 
-void setBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
+void Utilities_setBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
     uint16_t byteNum = bitNum >> 3;
     if(byteNum >= mapByteLen) {
         return;
@@ -150,7 +150,7 @@ void setBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
     }
 }
 
-void clearBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
+void Utilities_clearBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
     uint16_t byteNum = bitNum >> 3;
     if(byteNum >= mapByteLen) {
         return;
@@ -159,7 +159,7 @@ void clearBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
     }
 }
 
-bool checkBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
+bool Utilities_checkBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
     uint16_t byteNum = bitNum >> 3;
     if(byteNum >= mapByteLen) {
         return false;
@@ -175,7 +175,7 @@ bool checkBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
  * returns BITMAP_NO_BIT_FOUND (0xFFFFFFFF) if there are no unset bits in the map
  * otherwise returns from 0 to 524,287 (2^19 less one) depending on the length of the map
  */
-uint32_t getLowestUnsetBitInMap(uint8_t* map, uint16_t mapByteLen) {
+uint32_t Utilities_getLowestUnsetBitInMap(uint8_t* map, uint16_t mapByteLen) {
     uint16_t byteNum = 0;
     while((map[byteNum] == 0xFF) && (byteNum < mapByteLen)) {
         byteNum++;
