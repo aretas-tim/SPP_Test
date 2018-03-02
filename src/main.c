@@ -193,7 +193,7 @@ while (1)
         }
 
         U2fHid_secondTick(); //prevents the U2F HID system from locking up due to an unresponsive or ended host process
-        UartDebug_sendline("Second Tick!\n");
+        UartDebug_sendline("BSPS-Firmware-USB Second Tick!\n");
 
 
     }

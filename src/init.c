@@ -6,7 +6,7 @@
  */
 
 #include "init.h"
-
+#include "uart_debug.h"
 
 /**
   * @brief  System Clock Configuration
@@ -194,7 +194,12 @@ void Init_debugUartInit(UART_HandleTypeDef* huart_debug ) {
 
 
 #endif
+
+#ifdef UART_DEBUG_OSX //for OSX and Mac the highest baud rate easily attainable is 230400. defined in uart_debug.h
     huart_debug->Init.BaudRate = 230400;
+#else
+    huart_debug->Init.BaudRate = 250000;
+#endif
     huart_debug->Init.WordLength = UART_WORDLENGTH_8B;
     huart_debug->Init.StopBits = UART_STOPBITS_1;
     huart_debug->Init.Parity = UART_PARITY_NONE;
