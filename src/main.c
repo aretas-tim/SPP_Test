@@ -66,7 +66,7 @@ typedef enum {
     PHASE_IDLE,
     PHASE_HEADER,
     PHASE_BODY
-} CommandReceivePhase;
+} Main_CommandReceivePhase;
 
 ADC_HandleTypeDef hadc;
 I2C_HandleTypeDef hi2c;
@@ -85,27 +85,26 @@ volatile uint32_t ticks = 0;
 
 AuthData_CombinedStore authDataStore;
 TunnelStructures_TransportTunnel tunnel;
-size_t commRxBufferNeeded = TUNNEL_HEADER_LEN;
-uint8_t commRxInHeader = true;
+size_t Main_commRxBufferNeeded = TUNNEL_HEADER_LEN;
+uint8_t Main_commRxInHeader = true;
 TunnelStructures_TunnelBufferCtx commandInFlight;
 
 Status_WorkStatus statusWork = WORK_WORKING;
 Status_LockStatus statusLock = LOCK_LOCKED;
 
-volatile uint8_t doUnlockFlag = false;
-volatile uint8_t doEnterPinFlag = false;
-volatile uint8_t doVerifyPinFlag = false;
-volatile uint8_t doEnterOtcFlag = false;
+volatile uint8_t Main_doUnlockFlag = false;
+volatile uint8_t Main_doEnterPinFlag = false;
+volatile uint8_t Main_doVerifyPinFlag = false;
+volatile uint8_t Main_doEnterOtcFlag = false;
 
-uint32_t lockAtTick = 0;
+uint32_t Main_lockAtTick = 0;
 volatile uint8_t secondTicksUpdated = false;
-bool testAddEntryFlag = false;
+bool Main_testAddEntryFlag = false;
 
-/* Private function prototypes -----------------------------------------------*/
 
-uint8_t getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight);
+static uint8_t Main_getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight);
 //test stuff
-void testCallback(void);
+void Main_testCallback(void);
 
 size_t (*receiveAvailableFunc) (void);
 size_t (*receiveDataFunc) (uint8_t*, size_t);
@@ -203,8 +202,8 @@ while (1)
   }
 }
 
-void testCallback(void) {
-    testAddEntryFlag = true;
+void Main_testCallback(void) {
+    Main_testAddEntryFlag = true;
 }
 
 
@@ -215,11 +214,11 @@ void testCallback(void) {
  * to boot this out to be thread-safe and support multiple invocations, need to pack the state (static variables, buffers, function pointers, etc)
  * in to a context struct
  */
-uint8_t getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight) {
+uint8_t Main_getCommand(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* commandInFlight) {
 #ifdef ARGLE /*ifdeffed out so this compiles whlie we're working on it. probably going to do this differently anyway*/
 #define SRAM2_TUNNEL_RX_BUFF_LEN 0
     static uint8_t commandReceiveBuffer[TUNNEL_HEADER_LEN]; //don't need to keep more than the header locally, everything else can be read out in to the command buffer context
-    static CommandReceivePhase phase = PHASE_IDLE; //what phase we're at
+    static Main_CommandReceivePhase phase = PHASE_IDLE; //what phase we're at
     static size_t cmdLen = 0; //the total length we're trying to read
     static size_t bytesRead = 0; //how many bytes we've already read
     size_t bytesAvailable = receiveAvailableFunc();
