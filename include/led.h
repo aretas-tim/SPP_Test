@@ -304,15 +304,15 @@ void ledSetErrorOn(void);
 void ledSetComms(uint8_t);
 void ledSetDebug(uint8_t);
 void ledCallback(void);
-void LED_HeartbeatUpdate(LockStatus s, WorkStatus w);
+void LED_HeartbeatUpdate(Status_LockStatus s, Status_WorkStatus w);
 void LED_SetHeartbeatColour(uint16_t r, uint16_t g, uint16_t b);
-void LED_GetColours(LED_Colour* colour, LockStatus status);
+void LED_GetColours(LED_Colour* colour, Status_LockStatus status);
 void LED_CommSet(void);
 void LED_DebugSet(void);
 void LED_DoWink(void); //for U2F
 
 void LED_UpdateBatteryState(uint16_t batteryMillivolts, bool isCharging);
-void LED_UpdateUSBStatus(CommStatus usb);
+void LED_UpdateUSBStatus(Status_CommStatus usb);
 void LED_UpdateUSBActivity(void);
 void LED_SetKeypadAltIndication(bool isAltActive);
 void LED_SetKeypadLocked(bool isKeypadLocked);

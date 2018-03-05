@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include "usbd_u2f_hid_if.h" /* USB HID interface */
 
-uint8_t U2F_IMPL_ResponseBuffer[sizeof(U2F_REGISTER_RESP)]; //biggest structure we can return
+uint8_t U2f_implResponseBuffer[sizeof(U2F_REGISTER_RESP)]; //biggest structure we can return
 
 
 /**
@@ -26,7 +26,7 @@ uint8_t U2F_IMPL_ResponseBuffer[sizeof(U2F_REGISTER_RESP)]; //biggest structure 
  *
  *
  */
-uint32_t U2F_Register(U2F_REGISTER_REQ* request, uint16_t (*responseSendFunc) (uint16_t, uint8_t*)) {
+uint32_t U2f_register(U2F_REGISTER_REQ* request, uint16_t (*responseSendFunc) (uint16_t, uint8_t*)) {
 
 
 
@@ -41,7 +41,7 @@ uint32_t U2F_Register(U2F_REGISTER_REQ* request, uint16_t (*responseSendFunc) (u
  * param msg the message in APDU format
  * param responseSendFunc the function to send the response via
  */
-uint32_t U2F_ParseMessage(uint16_t msgLen, uint8_t* msg, uint16_t (*responseSendFunc) (uint16_t, uint8_t*)) {
+uint32_t U2f_parseMessage(uint16_t msgLen, uint8_t* msg, uint16_t (*responseSendFunc) (uint16_t, uint8_t*)) {
     if(msgLen < 4) {
         return -1; //@TODO something better. basically message was too short to parse
     }

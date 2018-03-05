@@ -37,11 +37,9 @@
 #include "usb_device.h"
 #include "usbd_core.h"
 #include "usbd_desc.h"
-//#include "usbd_customhid.h"
 #include "usbd_tunnel_hid_if.h"
 #include "usbd_u2f_hid_if.h"
 #include "usbd_hotkey_hid_if.h"
-//#include "usbd_msc.h"
 #include "usbd_msc_storage_if.h"
 #include "usbd_pat_comp.h"
 
@@ -55,19 +53,11 @@ void MX_USB_DEVICE_Init(void)
 {
   /* Init Device Library,Add Supported Class and Start the library*/
   USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS);
-  //USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
-  //USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS);
 
-  //USBD_RegisterClass(&hUsbDeviceFS, &USBD_CUSTOM_HID);
-  //USBD_CUSTOM_HID_RegisterInterface(&hUsbDeviceFS, &USBD_CustomHID_fops_FS);
-
-
-  //USBD_MSC_RegisterStorage(&hUsbDeviceFS, &callbacks);
 #ifdef USBD_COMPOSITE
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_PAT_COMP);
     USBD_PAT_COMP_RegisterCallbacks(&hUsbDeviceFS, &USBD_MSC_Template_fops, &USBD_TUNNEL_HID_Callbacks, &USBD_U2F_HID_Callbacks, &USBD_HOTKEY_HID_Callbacks);
 #elif defined USBD_STANDALONE_HOTKEY
-    //USBD_HOTKEY_HID_HandleTypeDef *hhid = (USBD_HOTKEY_HID_HandleTypeDef*) hUsbDeviceFS.pClassData;
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_HOTKEY_HID);
     USBD_HOTKEY_HID_RegisterCallbacks(&hUsbDeviceFS, &USBD_HOTKEY_HID_Callbacks);
 #endif

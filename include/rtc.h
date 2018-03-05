@@ -20,11 +20,10 @@
 #define RTC_MAX_MONTH 12
 #define RTC_MAX_YEAR 99
 
-//uint8_t RTC_DAYS_IN_MONTH[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; //0 month is 0 days as month is stored in BCD, 1-based (1 is jan, 2 is feb, etc)
 
 /* sets the RTC_AlarmTypeDef* to the point in the future specified by the parameters*/
 uint8_t RTC_SetAlarm(volatile uint32_t* alarm, uint8_t offsetDays, uint8_t offsetHours, uint8_t offsetMinutes, uint8_t offsetSeconds);
-void dumpRTC(void);
+void Rtc_dumpRTC(void);
 
 
 #endif /* RTC_H_ */

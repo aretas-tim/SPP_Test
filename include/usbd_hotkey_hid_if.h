@@ -47,8 +47,8 @@
 extern USBD_HOTKEY_HID_ItfTypeDef  USBD_HOTKEY_HID_Callbacks;
 //extern USBD_TUNNEL_HID_ItfTypeDef USBD_Tunnel_HID_template_fops;
 
-uint16_t HOTKEY_HID_SendString(char* text);
-uint16_t HOTKEY_HID_SendScancodes(KeyWithModifiers* codes, uint16_t len);
+uint16_t HotkeyHid_sendString(char* text);
+uint16_t HotkeyHid_sendScancodes(KeyWithModifiers* codes, uint16_t len);
 
 #ifdef __cplusplus
 }

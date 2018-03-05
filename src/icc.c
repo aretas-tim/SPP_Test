@@ -19,62 +19,47 @@
 #include "sram2.h"
 
 
-ICC_TargetInfo* ICC_CurrentTarget = NULL; /* pointer to the buffer that the DMA is currently using, direction depends on context */
-uint16_t ICC_CurrentTransferLen = 0; /* holds how many bytes we're expecting to transfer */
-ICC_DMAStateEnum ICC_DMAState = ICC_DMA_ERROR;
+Icc_TargetInfo* Icc_currentTarget = NULL; /* pointer to the buffer that the DMA is currently using, direction depends on context */
+uint16_t Icc_currentTransferLen = 0; /* holds how many bytes we're expecting to transfer */
+Icc_DmaStateEnum Icc_dmaState = ICC_DMA_ERROR;
+Icc_TransferInfo Icc_lastTransferInfo = {.targetValid = false, .target = 0, .length = 0};
+uint8_t Icc_targetInfoBuffer[ICC_TARGET_INFO_BUFFER_LENGTH]; //because its shared between two functions now, saves memory
 
-ICC_TransferInfo ICC_LastTransferInfo = {.targetValid = false, .target = 0, .length = 0};
+SPI_HandleTypeDef* Icc_spiHandle = NULL;
+bool Icc_isInitialized = false;
+/* these are multiplexed with the wakeup pin, as it has no function outside of deep sleep */
+GPIO_TypeDef* Icc_readyPort = NULL;
+uint16_t Icc_readyPin = 0; //no pin
+/* outgoing IRQ to secure micro, to let it know we have data waiting */
+GPIO_TypeDef* Icc_irqPort = NULL;
+uint16_t Icc_irqPin = 0; //no pin
 
-volatile bool ICC_WaitForTransferCompleteCallback = false; //used to pause the deselected callback until the rx/tx complete callback has finished
+volatile bool Icc_waitForTransferCompleteCallback = false; //used to pause the deselected callback until the rx/tx complete callback has finished
+uint8_t Icc_headerInBuffer[ICC_HEADER_LENGTH]; /* header is always "in", though it proceeds no further than us */
+uint8_t Icc_commandInBuffer[ICC_COMMAND_BUFFER_LENGTH];
 
-uint8_t ICC_HeaderInBuffer[ICC_HEADER_LENGTH]; /* header is always "in", though it proceeds no further than us */
-uint8_t ICC_CommandInBuffer[ICC_COMMAND_BUFFER_LENGTH];
 
-bool ICC_ICCCommandHandler(uint8_t command, uint16_t len); /* short commands */
-bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len);
-void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]);
-void ICC_ICCTransmitCompleteCallback(void);
 
-void ICC_AssertDataWaiting(void);
-bool ICC_CheckForDataWaiting(void);
+
+
+
+static bool Icc_iccCommandHandler(uint8_t command, uint16_t len); /* short commands */
+static bool Icc_iccExtendedCommandHandler(uint8_t* data, uint16_t len);
+static void Icc_headerHandler(uint8_t header[ICC_HEADER_LENGTH]);
+static void Icc_iccTransmitCompleteCallback(void);
+static void Icc_assertDataWaiting(void);
+static bool Icc_checkForDataWaiting(void);
 //there is no clear, check for data waiting will clear as-needed
+static Icc_TargetInfo* Icc_lookupTargetInfo(uint8_t target);
+static void Icc_preparePowerMode(void);
+static void Icc_prepareLastTransferInfo(uint8_t target);
+static void Icc_prepareTargetList(uint16_t len);
+static void Icc_prepareTargetMaximumsList(uint16_t len);
+static void Icc_setPowerMode(uint8_t mode);
+static void Icc_setUSBEnabled(bool isUSBEnabled);
+static HAL_StatusTypeDef Icc_setupHeaderReceive(void);
 
-ICC_TargetInfo* ICC_LookupTargetInfo(uint8_t target);
-
-void ICC_PreparePowerMode(void);
-void ICC_PrepareLastTransferInfo(uint8_t target);
-void ICC_PrepareTargetList(uint16_t len);
-void ICC_PrepareTargetMaximumsList(uint16_t len);
-
-void ICC_SetPowerMode(uint8_t mode);
-
-void ICC_SetUSBEnabled(bool isUSBEnabled);
-
-
-
-
-uint8_t ICC_TargetInfoBuffer[ICC_TARGET_INFO_BUFFER_LENGTH]; //because its shared between two functions now, saves memory
-
-
-//bool ICC_EchoHandler(uint8_t* buff, uint16_t len);
-//void ICC_EchoTransmitCompleteCallback(void);
-
-ICC_TargetInfo ICC_Target_ICC = {
-        .number = ICC_TARGET_ICC,
-        .lastTransferDirection = 0,
-        .lastTransferLen = 0,
-        .inBuffer = ICC_CommandInBuffer,
-        .inBufferLen = 0,
-        .inBufferLenMax = ICC_COMMAND_BUFFER_LENGTH,
-        .inBufferState = ICC_BUFFER_STATE_IDLE,
-        .outBuffer = NULL,
-        .outBufferLen = 0,
-        .outBufferState = ICC_BUFFER_STATE_IDLE,
-        .rxCallback = ICC_ICCExtendedCommandHandler, /* short commands are handled by a separate code path, not this callback */
-        .txCompleteCallback = ICC_ICCTransmitCompleteCallback
-};
-
-ICC_TargetInfo ICC_Target_LEDs = {
+Icc_TargetInfo Icc_targetLEDs = {
         .number = ICC_TARGET_LEDS,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -90,7 +75,7 @@ ICC_TargetInfo ICC_Target_LEDs = {
         .txCompleteCallback = NULL
 };
 
-ICC_TargetInfo ICC_Target_Tunnel = {
+Icc_TargetInfo Icc_targetTunnel = {
         .number = ICC_TARGET_TUNNEL,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -106,7 +91,7 @@ ICC_TargetInfo ICC_Target_Tunnel = {
         .txCompleteCallback = NULL
 };
 
-ICC_TargetInfo ICC_Target_U2F = {
+Icc_TargetInfo Icc_targetU2f = {
         .number = ICC_TARGET_U2F,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -122,7 +107,7 @@ ICC_TargetInfo ICC_Target_U2F = {
         .txCompleteCallback = NULL
 };
 
-ICC_TargetInfo ICC_Target_Hotkey = {
+Icc_TargetInfo Icc_targetHotkey = {
         .number = ICC_TARGET_HOTKEY,
         .lastTransferDirection = 0,
         .lastTransferLen = 0,
@@ -137,65 +122,65 @@ ICC_TargetInfo ICC_Target_Hotkey = {
         .rxCallback = NULL,
         .txCompleteCallback = NULL
 };
+Icc_TargetInfo Icc_targetIcc = {
+        .number = ICC_TARGET_ICC,
+        .lastTransferDirection = 0,
+        .lastTransferLen = 0,
+        .inBuffer = Icc_commandInBuffer,
+        .inBufferLen = 0,
+        .inBufferLenMax = ICC_COMMAND_BUFFER_LENGTH,
+        .inBufferState = ICC_BUFFER_STATE_IDLE,
+        .outBuffer = NULL,
+        .outBufferLen = 0,
+        .outBufferState = ICC_BUFFER_STATE_IDLE,
+        .rxCallback = Icc_iccExtendedCommandHandler, /* short commands are handled by a separate code path, not this callback */
+        .txCompleteCallback = Icc_iccTransmitCompleteCallback
+};
 
-ICC_TargetInfo* ICC_TargetInfoList[ICC_NUM_TARGETS] = {
-        &ICC_Target_ICC,
-        &ICC_Target_LEDs,
-        &ICC_Target_Tunnel,
-        &ICC_Target_U2F,
-        &ICC_Target_Hotkey,
+Icc_TargetInfo* Icc_targetInfoList[ICC_NUM_TARGETS] = {
+        &Icc_targetIcc,
+        &Icc_targetLEDs,
+        &Icc_targetTunnel,
+        &Icc_targetU2f,
+        &Icc_targetHotkey,
 };
 
 
-SPI_HandleTypeDef* ICC_SpiHandle = NULL;
 
-bool ICC_IsInitialized = false;
-
-/* these are multiplexed with the wakeup pin, as it has no function outside of deep sleep */
-GPIO_TypeDef* ICC_ReadyPort = NULL;
-uint16_t ICC_ReadyPin = 0; //no pin
-
-/* outgoing IRQ to secure micro, to let it know we have data waiting */
-GPIO_TypeDef* ICC_IRQPort = NULL;
-uint16_t ICC_IRQPin = 0; //no pin
-
-
-HAL_StatusTypeDef ICC_SetupHeaderReceive(void);
-
-void ICC_Init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPin, GPIO_TypeDef* IRQPort, uint16_t IRQPin) {
+void Icc_init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPin, GPIO_TypeDef* IRQPort, uint16_t IRQPin) {
     //do init things where once we know what needs to be initialized
     if(hspi != NULL) {
-        ICC_SpiHandle = hspi;
+        Icc_spiHandle = hspi;
     } else {
-        ICC_SpiHandle = NULL;
-        ICC_ReadyPort = NULL;
-        ICC_ReadyPin = 0;
-        ICC_IsInitialized = false;
-        uart_debug_sendline("ICC unable to start. SPI Handle was NULL.\n");
+        Icc_spiHandle = NULL;
+        Icc_readyPort = NULL;
+        Icc_readyPin = 0;
+        Icc_isInitialized = false;
+        UartDebug_sendline("ICC unable to start. SPI Handle was NULL.\n");
         return;
     }
     if(NULL != readyPort && 0 != readyPin) { //0 on a pin means no pin
-        ICC_ReadyPort = readyPort;
-        ICC_ReadyPin = readyPin;
-        ICC_IRQPort = IRQPort;
-        ICC_IRQPin = IRQPin;
+        Icc_readyPort = readyPort;
+        Icc_readyPin = readyPin;
+        Icc_irqPort = IRQPort;
+        Icc_irqPin = IRQPin;
     } else {
-        ICC_SpiHandle = NULL;
-        ICC_ReadyPort = NULL;
-        ICC_ReadyPin = 0;
-        ICC_IsInitialized = false;
-        uart_debug_sendline("ICC unable to start. Transfer ready port/pin was invalid.\n");
+        Icc_spiHandle = NULL;
+        Icc_readyPort = NULL;
+        Icc_readyPin = 0;
+        Icc_isInitialized = false;
+        UartDebug_sendline("ICC unable to start. Transfer ready port/pin was invalid.\n");
         return;
     }
     //set up local targets
-    bool targetSetupOkay = ICC_SetupTarget(ICC_TARGET_ICC, ICC_CommandInBuffer, ICC_COMMAND_BUFFER_LENGTH, ICC_ICCExtendedCommandHandler, ICC_COMMAND_BUFFER_LENGTH, ICC_ICCTransmitCompleteCallback);
+    bool targetSetupOkay = Icc_setupTarget(ICC_TARGET_ICC, Icc_commandInBuffer, ICC_COMMAND_BUFFER_LENGTH, Icc_iccExtendedCommandHandler, ICC_COMMAND_BUFFER_LENGTH, Icc_iccTransmitCompleteCallback);
     if(!targetSetupOkay) {
-        uart_debug_sendline("ICC unable to start, ICC target setup failed.");
-        ICC_IsInitialized = false;
+        UartDebug_sendline("ICC unable to start, ICC target setup failed.");
+        Icc_isInitialized = false;
         return;
     }
 
-    ICC_IsInitialized = true;
+    Icc_isInitialized = true;
 }
 
 /* ICC start
@@ -204,23 +189,23 @@ void ICC_Init(SPI_HandleTypeDef* hspi, GPIO_TypeDef* readyPort, uint16_t readyPi
  *
  * call this after Init and after all targets have been set up
  */
-void ICC_Start(void) {
-    if(!ICC_IsInitialized) {
+void Icc_start(void) {
+    if(!Icc_isInitialized) {
         return;
     }
     //setup DMA to receive first packet
-    HAL_StatusTypeDef rc =  ICC_SetupHeaderReceive();
+    HAL_StatusTypeDef rc =  Icc_setupHeaderReceive();
     if(rc != HAL_OK) {
-        uart_debug_sendstring("Unable to enable DMA receive during ICC Startup (");
-        uart_debug_printuint8(rc);
-        uart_debug_sendline(")\n");
-        uart_debug_sendline("ICC unable to start.\n");
+        UartDebug_sendString("Unable to enable DMA receive during ICC Startup (");
+        UartDebug_printuint8(rc);
+        UartDebug_sendline(")\n");
+        UartDebug_sendline("ICC unable to start.\n");
         return;
     } else {
-        uart_debug_sendline("ICC Started.\n");
+        UartDebug_sendline("ICC Started.\n");
     }
-    if(ICC_IRQPort != NULL) { //if this is non-null, which it can be to operate in polling-only
-        ICC_IRQPort->BRR = ICC_IRQPin; //bring this low to let the secure micro know we're ready and it can query us
+    if(Icc_irqPort != NULL) { //if this is non-null, which it can be to operate in polling-only
+        Icc_irqPort->BRR = Icc_irqPin; //bring this low to let the secure micro know we're ready and it can query us
     }
 }
 
@@ -232,8 +217,8 @@ void ICC_Start(void) {
  * param rxCallback a pointer to the function to call when data has been received from the secure micro. can be NULL if no data is expected
  * param txCompleteCallback a pointer to the function to call when a transmission to the secure micro has been completed, can be NULL if notification is required.
  */
-bool ICC_SetupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bool (*rxCallback)(uint8_t*, uint16_t), uint16_t maxTxLen, void (*txCompleteCallback)(void)) {
-    ICC_TargetInfo* targetInfo = ICC_LookupTargetInfo(target);
+bool Icc_setupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bool (*rxCallback)(uint8_t*, uint16_t), uint16_t maxTxLen, void (*txCompleteCallback)(void)) {
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target);
     if(targetInfo == NULL) {
         return false;
     } else {
@@ -252,151 +237,151 @@ bool ICC_SetupTarget(uint8_t target, uint8_t* rxBuffer, uint16_t rxBufferLen, bo
 /* param force true to force it to run (used in the NSS rising interrupt to ensure the rx fifo is flushed)
  *
  */
-HAL_StatusTypeDef ICC_SetupHeaderReceive() {
-    //if(ICC_DMAState != ICC_DMA_HEADER) { //prevent it from running when already setup
-        HAL_SPIEx_FlushRxFifo(ICC_SpiHandle);
-        ICC_DMAState = ICC_DMA_HEADER;
-        uart_debug_sendline("ICC Waiting for Header.\n");
-        HAL_StatusTypeDef rc = HAL_SPI_Receive_DMA(ICC_SpiHandle, ICC_HeaderInBuffer, ICC_HEADER_LENGTH);
-        ICC_CheckForDataWaiting(); //only ever run this now, to prevent the secure micro from being too aggressive.
+HAL_StatusTypeDef Icc_setupHeaderReceive() {
+    //if(Icc_dmaState != ICC_DMA_HEADER) { //prevent it from running when already setup
+        HAL_SPIEx_FlushRxFifo(Icc_spiHandle);
+        Icc_dmaState = ICC_DMA_HEADER;
+        UartDebug_sendline("ICC Waiting for Header.\n");
+        HAL_StatusTypeDef rc = HAL_SPI_Receive_DMA(Icc_spiHandle, Icc_headerInBuffer, ICC_HEADER_LENGTH);
+        Icc_checkForDataWaiting(); //only ever run this now, to prevent the secure micro from being too aggressive.
     //}
     return rc;
 }
 
 
-void ICC_DMARxCompleteCallback(void) {
+void Icc_dmaRxCompleteCallback(void) {
     //grab a copy of the data transfer register from the RX DMA channel,
     //this *should* be 0 (all data transferred)
     //if its not, we're missing bytes, probably caused by /SS going high before all the data was transferred
-    uint32_t transferRemainingLen = ICC_SpiHandle->hdmarx->Instance->CNDTR;
-    uart_debug_sendline("ICC DMA Rx Complete Callback\n");
-    switch(ICC_DMAState) {
+    uint32_t transferRemainingLen = Icc_spiHandle->hdmarx->Instance->CNDTR;
+    UartDebug_sendline("ICC DMA Rx Complete Callback\n");
+    switch(Icc_dmaState) {
         case ICC_DMA_HEADER:
             if(transferRemainingLen) {
-                ICC_SetupHeaderReceive(); //try to get another header, something went bad with this one
+                Icc_setupHeaderReceive(); //try to get another header, something went bad with this one
 #ifdef DEBUG_ICC
-                uart_debug_sendline("ICC Received short header.\n");
+                UartDebug_sendline("ICC Received short header.\n");
 #endif /* DEBUG_ICC */
             } else {
-                ICC_DMAState = ICC_DMA_IDLE;
-                ICC_HeaderHandler(ICC_HeaderInBuffer); //that was easy
-                ICC_ReadyPort->BRR = ICC_ReadyPin; //take this low to say we're ready.
+                Icc_dmaState = ICC_DMA_IDLE;
+                Icc_headerHandler(Icc_headerInBuffer); //that was easy
+                Icc_readyPort->BRR = Icc_readyPin; //take this low to say we're ready.
             }
             break;
         case ICC_DMA_RECEIVE:
-            ICC_ReadyPort->BSRR = ICC_ReadyPin; //take this back high, no longer ready
-            ICC_DMAState = ICC_DMA_IDLE;
-            if(ICC_CurrentTarget != NULL) {
+            Icc_readyPort->BSRR = Icc_readyPin; //take this back high, no longer ready
+            Icc_dmaState = ICC_DMA_IDLE;
+            if(Icc_currentTarget != NULL) {
                 //call the rx callback, if it exists
-                if(ICC_CurrentTarget->rxCallback != NULL && ICC_CurrentTarget->inBufferLenMax > 0) {
-                    ICC_CurrentTarget->inBufferLen = ICC_CurrentTransferLen - transferRemainingLen;
-                    ICC_CurrentTarget->inBufferState = ICC_BUFFER_STATE_PROCESSING; //busy being processed elsewhere
-                    uart_debug_sendstring("ICC received ");
-                    uart_debug_printuint32(ICC_CurrentTarget->inBufferLen);
-                    uart_debug_sendline(" bytes. Processing.\n");
-                    bool rc = ICC_CurrentTarget->rxCallback(ICC_CurrentTarget->inBuffer, ICC_CurrentTarget->inBufferLen);
+                if(Icc_currentTarget->rxCallback != NULL && Icc_currentTarget->inBufferLenMax > 0) {
+                    Icc_currentTarget->inBufferLen = Icc_currentTransferLen - transferRemainingLen;
+                    Icc_currentTarget->inBufferState = ICC_BUFFER_STATE_PROCESSING; //busy being processed elsewhere
+                    UartDebug_sendString("ICC received ");
+                    UartDebug_printuint32(Icc_currentTarget->inBufferLen);
+                    UartDebug_sendline(" bytes. Processing.\n");
+                    bool rc = Icc_currentTarget->rxCallback(Icc_currentTarget->inBuffer, Icc_currentTarget->inBufferLen);
                     if(!rc) { //buffer released by callback
-                        ICC_CurrentTarget->inBufferState = ICC_BUFFER_STATE_READY;
+                        Icc_currentTarget->inBufferState = ICC_BUFFER_STATE_READY;
                     } // else buffer kept by callback for later processing or further transmission back to the host
-                    ICC_LastTransferInfo.targetValid = true;
+                    Icc_lastTransferInfo.targetValid = true;
                 } else {
-                    uart_debug_sendline("ICC received data to valid target, but there was no rx callback.\n");
-                    ICC_LastTransferInfo.targetValid = false; //transferred to an invalid target, i.e. nothing was done with the data
+                    UartDebug_sendline("ICC received data to valid target, but there was no rx callback.\n");
+                    Icc_lastTransferInfo.targetValid = false; //transferred to an invalid target, i.e. nothing was done with the data
                 }
-                ICC_LastTransferInfo.target = ICC_CurrentTarget->number | ICC_HEADER_TARGET_IN;
+                Icc_lastTransferInfo.target = Icc_currentTarget->number | ICC_HEADER_TARGET_IN;
 
             } else {
-                uart_debug_sendline("ICC received data to invalid target.\n");
-                ICC_LastTransferInfo.target = ICC_TARGET_NULL | ICC_HEADER_TARGET_IN;
-                ICC_LastTransferInfo.targetValid = false;
+                UartDebug_sendline("ICC received data to invalid target.\n");
+                Icc_lastTransferInfo.target = ICC_TARGET_NULL | ICC_HEADER_TARGET_IN;
+                Icc_lastTransferInfo.targetValid = false;
             }
-            ICC_LastTransferInfo.length = ICC_CurrentTransferLen - transferRemainingLen;
+            Icc_lastTransferInfo.length = Icc_currentTransferLen - transferRemainingLen;
 
-            ICC_SetupHeaderReceive(); //set up to receive the next header
+            Icc_setupHeaderReceive(); //set up to receive the next header
             break;
         default:
-            uart_debug_sendstring("ICC DMA RX Complete Callback called while in invalid ICC_DMAState: ");
-            uart_debug_printuint32(ICC_DMAState);
-            uart_debug_newline();
+            UartDebug_sendString("ICC DMA RX Complete Callback called while in invalid Icc_dmaState: ");
+            UartDebug_printuint32(Icc_dmaState);
+            UartDebug_newline();
             break;
     }
-    ICC_WaitForTransferCompleteCallback = false; //finished, anything that was waiting no longer needs to wait
+    Icc_waitForTransferCompleteCallback = false; //finished, anything that was waiting no longer needs to wait
 }
 
 /* we've finished sending some data to the secure micro */
-void ICC_DMATxCompleteCallback(void) {
-    if(ICC_DMAState != ICC_DMA_TRANSMIT) {
-        uart_debug_sendstring("ICC DMA TX Complete Callback called while in invalid ICC_DMAState:");
-        uart_debug_printuint32(ICC_DMAState);
-        uart_debug_newline();
+void Icc_dmaTxCompleteCallback(void) {
+    if(Icc_dmaState != ICC_DMA_TRANSMIT) {
+        UartDebug_sendString("ICC DMA TX Complete Callback called while in invalid Icc_dmaState:");
+        UartDebug_printuint32(Icc_dmaState);
+        UartDebug_newline();
         return;
     }
-    ICC_ReadyPort->BSRR = ICC_ReadyPin; //take this back high, no longer ready
-    uint32_t remainingTransferLen = ICC_SpiHandle->hdmatx->Instance->CNDTR; //get any remaining transfer length
-    uart_debug_sendline("ICC DMA Tx Complete Callback\n");
+    Icc_readyPort->BSRR = Icc_readyPin; //take this back high, no longer ready
+    uint32_t remainingTransferLen = Icc_spiHandle->hdmatx->Instance->CNDTR; //get any remaining transfer length
+    UartDebug_sendline("ICC DMA Tx Complete Callback\n");
     uint32_t actualTransferLen;
-    if(remainingTransferLen >= ICC_CurrentTransferLen) {
-        //there were no bytes transferred before /SS went high, or someone was mucking with ICC_CurrentTransferLen
+    if(remainingTransferLen >= Icc_currentTransferLen) {
+        //there were no bytes transferred before /SS went high, or someone was mucking with Icc_currentTransferLen
         actualTransferLen = 0;
     } else {
-        actualTransferLen = ICC_CurrentTransferLen - remainingTransferLen;
+        actualTransferLen = Icc_currentTransferLen - remainingTransferLen;
     }
 
-    if(ICC_CurrentTarget != NULL) {
+    if(Icc_currentTarget != NULL) {
 
         //check for underflow
-        if(ICC_CurrentTarget->outBufferLen < actualTransferLen) {
+        if(Icc_currentTarget->outBufferLen < actualTransferLen) {
             //how did we get here anyway?
-            ICC_CurrentTarget->outBufferLen = 0; //no more data available
+            Icc_currentTarget->outBufferLen = 0; //no more data available
 #ifdef DEBUG_ICC
-            uart_debug_sendline("ICC Transmit Underflowed.\n");
+            UartDebug_sendline("ICC Transmit Underflowed.\n");
 #endif /* DEBUG_ICC */
 
         } else {
-            ICC_CurrentTarget->outBufferLen -= actualTransferLen;
+            Icc_currentTarget->outBufferLen -= actualTransferLen;
         }
-        if(0 == ICC_CurrentTarget->outBufferLen) {
-            ICC_CurrentTarget->outBufferState = ICC_BUFFER_STATE_IDLE;
-            if(ICC_CurrentTarget->txCompleteCallback != NULL) {
-                ICC_CurrentTarget->txCompleteCallback(); //run the callback if its not NULL
+        if(0 == Icc_currentTarget->outBufferLen) {
+            Icc_currentTarget->outBufferState = ICC_BUFFER_STATE_IDLE;
+            if(Icc_currentTarget->txCompleteCallback != NULL) {
+                Icc_currentTarget->txCompleteCallback(); //run the callback if its not NULL
             }
         } else {
-            ICC_CurrentTarget->outBuffer += ICC_CurrentTransferLen; //move pointer forward
+            Icc_currentTarget->outBuffer += Icc_currentTransferLen; //move pointer forward
         }
-        ICC_DMAState = ICC_DMA_IDLE; //no matter what we're back to idling
-        ICC_LastTransferInfo.length = actualTransferLen;
-        ICC_LastTransferInfo.targetValid = true;
-        ICC_LastTransferInfo.target = ICC_CurrentTarget->number;
-        ICC_CurrentTarget = NULL; //null out our current target as we're finished for now, secure micro will need to request more data
+        Icc_dmaState = ICC_DMA_IDLE; //no matter what we're back to idling
+        Icc_lastTransferInfo.length = actualTransferLen;
+        Icc_lastTransferInfo.targetValid = true;
+        Icc_lastTransferInfo.target = Icc_currentTarget->number;
+        Icc_currentTarget = NULL; //null out our current target as we're finished for now, secure micro will need to request more data
     } else {
-        ICC_LastTransferInfo.length = actualTransferLen; //subtract off any remaining length in the DMA
-        ICC_LastTransferInfo.targetValid = false;
-        ICC_LastTransferInfo.target = ICC_TARGET_NULL;
+        Icc_lastTransferInfo.length = actualTransferLen; //subtract off any remaining length in the DMA
+        Icc_lastTransferInfo.targetValid = false;
+        Icc_lastTransferInfo.target = ICC_TARGET_NULL;
     }
-    ICC_WaitForTransferCompleteCallback = false;
-    ICC_SetupHeaderReceive(); //prep to receive the next header
+    Icc_waitForTransferCompleteCallback = false;
+    Icc_setupHeaderReceive(); //prep to receive the next header
 }
 
 /*if the in buffer of a target was kept around by the rxCallback
  * this will release it
  */
 void ICC_ReleaseInBuffer(uint8_t target) {
-    ICC_TargetInfo* targetInfo = ICC_LookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
     if(targetInfo->inBufferState == ICC_BUFFER_STATE_PROCESSING) { //only release if its in the processing state
         targetInfo->inBufferState = ICC_BUFFER_STATE_READY;
 #ifdef DEBUG_ICC
     } else {
-            uart_debug_sendstring("ICC_ReleaseInBuffer called with buffer not in correct state (");
-            uart_debug_printuint8(targetInfo->inBufferState);
-            uart_debug_sendstring(").\n");
+            UartDebug_sendString("ICC_ReleaseInBuffer called with buffer not in correct state (");
+            UartDebug_printuint8(targetInfo->inBufferState);
+            UartDebug_sendString(").\n");
 #endif /* DEBUG_ICC */
     }
 }
 
-ICC_TargetInfo* ICC_LookupTargetInfo(uint8_t target) {
+Icc_TargetInfo* Icc_lookupTargetInfo(uint8_t target) {
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
-        if(ICC_TargetInfoList[i]->number == (target & ICC_TARGET_NUMBER_MASK)) { //mask off direction bit
-            return ICC_TargetInfoList[i];
+        if(Icc_targetInfoList[i]->number == (target & ICC_TARGET_NUMBER_MASK)) { //mask off direction bit
+            return Icc_targetInfoList[i];
         }
     }
     return NULL;
@@ -405,28 +390,28 @@ ICC_TargetInfo* ICC_LookupTargetInfo(uint8_t target) {
 /**
  * checks the known targets for any out data waiting and updates the IRQ line
  */
-bool ICC_CheckForDataWaiting(void) {
+bool Icc_checkForDataWaiting(void) {
     bool isDataWaiting = false;
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
-        if(ICC_TargetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
+        if(Icc_targetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
             isDataWaiting = true;
-            uart_debug_sendline("ICC Has Out Data Waiting.\n");
+            UartDebug_sendline("ICC Has Out Data Waiting.\n");
             break;
         }
     }
-    if(ICC_IRQPort != NULL) { //this can be null, in theory.
+    if(Icc_irqPort != NULL) { //this can be null, in theory.
         if(isDataWaiting) {
-            ICC_IRQPort->BRR = ICC_IRQPin;
+            Icc_irqPort->BRR = Icc_irqPin;
         } else {
-            ICC_IRQPort->BSRR = ICC_IRQPin;
+            Icc_irqPort->BSRR = Icc_irqPin;
         }
     }
     return isDataWaiting;
 }
 
-void ICC_AssertDataWaiting(void) {
-    if(ICC_IRQPort != NULL) { //this can be null, in theory.
-        ICC_IRQPort->BRR = ICC_IRQPin;
+void Icc_assertDataWaiting(void) {
+    if(Icc_irqPort != NULL) { //this can be null, in theory.
+        Icc_irqPort->BRR = Icc_irqPin;
     }
 }
 
@@ -435,103 +420,103 @@ void ICC_AssertDataWaiting(void) {
  *
  * param header a 4-length uint8_t array
  */
-void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
+void Icc_headerHandler(uint8_t header[ICC_HEADER_LENGTH]) {
     uint8_t target = header[ICC_HEADER_TARGET_POS];
     uint8_t command = header[ICC_HEADER_COMMAND_POS];
     uint16_t length = ((uint16_t) header[ICC_HEADER_LENGTH_MSB_POS] << 8) + header[ICC_HEADER_LENGTH_LSB_POS];
-    ICC_TargetInfo* targetInfo = ICC_LookupTargetInfo(target); /* look up the target info structure, get the pointer */
-    uart_debug_sendstring("ICC Header Received: ");
-    uart_debug_hexdump(header, ICC_HEADER_LENGTH);
+    Icc_TargetInfo* targetInfo = Icc_lookupTargetInfo(target); /* look up the target info structure, get the pointer */
+    UartDebug_sendString("ICC Header Received: ");
+    UartDebug_hexdump(header, ICC_HEADER_LENGTH);
     if(targetInfo == NULL) {
         //no known target
         //@TODO handle error
-        ICC_LastTransferInfo.length = 0;
-        ICC_LastTransferInfo.target = target;
-        ICC_LastTransferInfo.targetValid = false;
+        Icc_lastTransferInfo.length = 0;
+        Icc_lastTransferInfo.target = target;
+        Icc_lastTransferInfo.targetValid = false;
 #ifdef DEBUG_ICC
-        uart_debug_sendstring("ICC Header Error: Invalid Target (");
-        uart_debug_printuint8(target);
-        uart_debug_sendstring(")\n");
+        UartDebug_sendString("ICC Header Error: Invalid Target (");
+        UartDebug_printuint8(target);
+        UartDebug_sendString(")\n");
 #endif /* DEBUG_ICC */
     } else {
-        ICC_CurrentTarget = targetInfo; //setting this is important
+        Icc_currentTarget = targetInfo; //setting this is important
         if(ICC_HEADER_TARGET_IN == (target & ICC_TARGET_DIR_MASK)) {
             //in transaction, so for us, a reception
             if((targetInfo->inBufferState != ICC_BUFFER_STATE_READY)) {
 #ifdef DEBUG_ICC
-                uart_debug_sendstring("ICC Header Error. In Transaction to non-ready buffer (");
-                uart_debug_printuint8(targetInfo->number);
-                uart_debug_sendstring(" ).\n");
+                UartDebug_sendString("ICC Header Error. In Transaction to non-ready buffer (");
+                UartDebug_printuint8(targetInfo->number);
+                UartDebug_sendString(" ).\n");
 #endif /* DEBUG_ICC */
-                ICC_CurrentTransferLen = 0;
-                ICC_DMAState = ICC_DMA_ERROR;
+                Icc_currentTransferLen = 0;
+                Icc_dmaState = ICC_DMA_ERROR;
             } else if ((targetInfo->inBufferLenMax == 0) ||
                        (targetInfo->rxCallback == NULL)) {
 #ifdef DEBUG_ICC
-                uart_debug_sendstring("ICC Header Error. In Transaction to invalid buffer (");
-                uart_debug_printuint8(targetInfo->number);
-                uart_debug_sendstring(" ).\n");
+                UartDebug_sendString("ICC Header Error. In Transaction to invalid buffer (");
+                UartDebug_printuint8(targetInfo->number);
+                UartDebug_sendString(" ).\n");
 #endif /* DEBUG_ICC */
-                ICC_CurrentTransferLen = 0;
-                ICC_DMAState = ICC_DMA_ERROR;
+                Icc_currentTransferLen = 0;
+                Icc_dmaState = ICC_DMA_ERROR;
             } else {
                 if(targetInfo->inBufferLenMax < length) { //check for potential overflow
                     //@TODO make note of this so we can better handle the error later
 #ifdef DEBUG_ICC
-                    uart_debug_sendstring("ICC Header Error. In Transaction larger than available buffer space ( ");
-                    uart_debug_printuint32(length);
-                    uart_debug_sendstring(" / ");
-                    uart_debug_printuint32(targetInfo->inBufferLenMax);
-                    uart_debug_sendstring(" ). Truncating.\n");
+                    UartDebug_sendString("ICC Header Error. In Transaction larger than available buffer space ( ");
+                    UartDebug_printuint32(length);
+                    UartDebug_sendString(" / ");
+                    UartDebug_printuint32(targetInfo->inBufferLenMax);
+                    UartDebug_sendString(" ). Truncating.\n");
 #endif /* DEBUG_ICC */
                     length = targetInfo->inBufferLenMax; //cap overflow
                 }
-                ICC_CurrentTransferLen = length;
-                ICC_DMAState = ICC_DMA_RECEIVE;
-                ICC_WaitForTransferCompleteCallback = true; //let the deselected callback handler know it needs to wait
-                HAL_SPI_Receive_DMA(ICC_SpiHandle, targetInfo->inBuffer, length); //set up receive
+                Icc_currentTransferLen = length;
+                Icc_dmaState = ICC_DMA_RECEIVE;
+                Icc_waitForTransferCompleteCallback = true; //let the deselected callback handler know it needs to wait
+                HAL_SPI_Receive_DMA(Icc_spiHandle, targetInfo->inBuffer, length); //set up receive
                 //wait for rxComplete callback
             }
         } else {
             //out transaction, transmit
-            if((&ICC_Target_ICC == targetInfo) && (command != ICC_COMMAND_EXTENDED)) {
+            if((&Icc_targetIcc == targetInfo) && (command != ICC_COMMAND_EXTENDED)) {
                 if(targetInfo->outBufferState != ICC_BUFFER_STATE_IDLE) {
 #ifdef DEBUG_ICC
-                    uart_debug_sendline("ICC Internal Error. ICC information requested while response waiting.\n");
+                    UartDebug_sendline("ICC Internal Error. ICC information requested while response waiting.\n");
 #endif /* DEBUG_ICC */
-                    ICC_CurrentTransferLen = 0;
-                    ICC_DMAState = ICC_DMA_ERROR;
+                    Icc_currentTransferLen = 0;
+                    Icc_dmaState = ICC_DMA_ERROR;
                 } else {
-                    ICC_ICCCommandHandler(command, length);
+                    Icc_iccCommandHandler(command, length);
                 }
 
             }
             if(targetInfo->outBufferState != ICC_BUFFER_STATE_READY) {
 #ifdef DEBUG_ICC
-                uart_debug_sendstring("ICC Header Error. Out Transaction from non-ready buffer (");
-                uart_debug_printuint8(targetInfo->number);
-                uart_debug_sendstring(" ).\n");
+                UartDebug_sendString("ICC Header Error. Out Transaction from non-ready buffer (");
+                UartDebug_printuint8(targetInfo->number);
+                UartDebug_sendString(" ).\n");
 #endif /* DEBUG_ICC */
-                ICC_CurrentTransferLen = 0;
-                ICC_DMAState = ICC_DMA_ERROR;
+                Icc_currentTransferLen = 0;
+                Icc_dmaState = ICC_DMA_ERROR;
             } else { //less checks here. no txCallback is not an error (might not need or want to be informed) and length of 0 is odd but gets caught anyway below
 
                 if(targetInfo->outBufferLen < length) { //check for potential overflow
                     //@TODO make note of this so we can better handle the error later
 #ifdef DEBUG_ICC
-                    uart_debug_sendstring("ICC Header Error. Out Transaction larger than available data ( ");
-                    uart_debug_printuint32(length);
-                    uart_debug_sendstring(" / ");
-                    uart_debug_printuint32(targetInfo->outBufferLen);
-                    uart_debug_sendstring(" ).\n");
-                    uart_debug_sendline("Garbage will be present.");
+                    UartDebug_sendString("ICC Header Error. Out Transaction larger than available data ( ");
+                    UartDebug_printuint32(length);
+                    UartDebug_sendString(" / ");
+                    UartDebug_printuint32(targetInfo->outBufferLen);
+                    UartDebug_sendString(" ).\n");
+                    UartDebug_sendline("Garbage will be present.");
 #endif /* DEBUG_ICC */
                     length = targetInfo->outBufferLen; //cap overflow
                 }
-                ICC_CurrentTransferLen = length;
-                ICC_DMAState = ICC_DMA_TRANSMIT;
-                ICC_WaitForTransferCompleteCallback = true; //let the deselected callback handler know it needs to wait
-                HAL_SPI_Transmit_DMA(ICC_SpiHandle, targetInfo->outBuffer, length); //set up transmit
+                Icc_currentTransferLen = length;
+                Icc_dmaState = ICC_DMA_TRANSMIT;
+                Icc_waitForTransferCompleteCallback = true; //let the deselected callback handler know it needs to wait
+                HAL_SPI_Transmit_DMA(Icc_spiHandle, targetInfo->outBuffer, length); //set up transmit
             }
         }
     }
@@ -540,41 +525,41 @@ void ICC_HeaderHandler(uint8_t header[ICC_HEADER_LENGTH]) {
 /* handles the short ICC commands we can receive, which is most of them
  * returns true if data was added to the ICC out buffer
  * false if not (generally because the command was unrecognized) */
-bool ICC_ICCCommandHandler(uint8_t command, uint16_t len) {
+bool Icc_iccCommandHandler(uint8_t command, uint16_t len) {
     bool ret = false;
     switch(command) {
         case ICC_COMMAND_LIST_TARGETS:
-            ICC_PrepareTargetList(len);
+            Icc_prepareTargetList(len);
             break;
         case ICC_COMMAND_GET_MAXIMUMS:
-            ICC_PrepareTargetMaximumsList(len);
+            Icc_prepareTargetMaximumsList(len);
             break;
         case ICC_COMMAND_LAST_XFER_STATUS:
-            ICC_PrepareLastTransferInfo(command);
+            Icc_prepareLastTransferInfo(command);
             break;
         case ICC_COMMAND_SET_SHUTDOWN:
-            ICC_SetPowerMode(ICC_POWER_MODE_SHUTDOWN);
+            Icc_setPowerMode(ICC_POWER_MODE_SHUTDOWN);
             break;
         case ICC_COMMAND_SET_LOW_POWER:
-            ICC_SetPowerMode(ICC_POWER_MODE_LOW);
+            Icc_setPowerMode(ICC_POWER_MODE_LOW);
             break;
         case ICC_COMMAND_SET_FULL_POWER:
-            ICC_SetPowerMode(ICC_POWER_MODE_FULL);
+            Icc_setPowerMode(ICC_POWER_MODE_FULL);
             break;
         case ICC_COMMAND_GET_POWER_MODE:
-            ICC_PreparePowerMode();
+            Icc_preparePowerMode();
             break;
         case ICC_COMMAND_USB_DISABLE:
-            ICC_SetUSBEnabled(false);
+            Icc_setUSBEnabled(false);
             break;
         case ICC_COMMAND_USB_ENABLE:
-            ICC_SetUSBEnabled(true);
+            Icc_setUSBEnabled(true);
             break;
         default:
 #ifdef DEBUG_ICC
-            uart_debug_sendstring("ICC Short Command Handler called with unknown command (");
-            uart_debug_printuint8(command);
-            uart_debug_sendline(").\n");
+            UartDebug_sendString("ICC Short Command Handler called with unknown command (");
+            UartDebug_printuint8(command);
+            UartDebug_sendline(").\n");
 #endif /* DEBUG_ICC */
             ret = false;
             break;
@@ -583,14 +568,14 @@ bool ICC_ICCCommandHandler(uint8_t command, uint16_t len) {
     return ret;
 }
 
-bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len) {
+bool Icc_iccExtendedCommandHandler(uint8_t* data, uint16_t len) {
     if((len == 0) || (data == NULL)) {
-        uart_debug_sendline("ICC Extended Command Handler called with zero length or null data.\n");
+        UartDebug_sendline("ICC Extended Command Handler called with zero length or null data.\n");
         return false;
     }
-    uart_debug_sendstring("ICC Extended Command Handler called with unknown command (");
-    uart_debug_printuint8(data[0]);
-    uart_debug_sendline(").\n");
+    UartDebug_sendString("ICC Extended Command Handler called with unknown command (");
+    UartDebug_printuint8(data[0]);
+    UartDebug_sendline(").\n");
     return false;
 }
 
@@ -598,60 +583,60 @@ bool ICC_ICCExtendedCommandHandler(uint8_t* data, uint16_t len) {
  * handles cleanup.
  * Note this CAN be different from the DMA RX and TX callbacks, if the length fields are mismatched from the actual amount of data transferred
  */
-void ICC_DeselectedCallbackHandler(void) {
-    if(NULL != ICC_ReadyPort) {
-        ICC_ReadyPort->BSRR = ICC_ReadyPin; //set this high again as we're not ready
+void Icc_deselectedCallbackHandler(void) {
+    if(NULL != Icc_readyPort) {
+        Icc_readyPort->BSRR = Icc_readyPin; //set this high again as we're not ready
     }
     /* list of issues that might happen:
      * not enough bytes transferred
      * too many bytes transferred (though this will get picked up earlier as the DMA completes)
      * bad target causing a need to clean up the SPI (main issue)
      */
-    HAL_SPI_StateTypeDef state = HAL_SPI_GetState(ICC_SpiHandle);
-    if(ICC_SpiHandle == NULL || state == HAL_SPI_STATE_RESET) {
+    HAL_SPI_StateTypeDef state = HAL_SPI_GetState(Icc_spiHandle);
+    if(Icc_spiHandle == NULL || state == HAL_SPI_STATE_RESET) {
         //spurious callback? handle is null or hasn't been initialized
         return;
     }
     if(state != HAL_SPI_STATE_READY) {
         //deselected but the DMA transfer is still in progress
-        HAL_SPI_DMAStop(ICC_SpiHandle); //call this. this will call the rx or tx callback as appropriate which will then call our callback.. callback
+        HAL_SPI_DMAStop(Icc_spiHandle); //call this. this will call the rx or tx callback as appropriate which will then call our callback.. callback
     }
-    if(ICC_DMAState == ICC_DMA_RECEIVE || ICC_DMAState == ICC_DMA_TRANSMIT) {
-        while(ICC_WaitForTransferCompleteCallback); //spin  until the callbacks have run so we don't trip over ourselves
+    if(Icc_dmaState == ICC_DMA_RECEIVE || Icc_dmaState == ICC_DMA_TRANSMIT) {
+        while(Icc_waitForTransferCompleteCallback); //spin  until the callbacks have run so we don't trip over ourselves
     }
-    ICC_CurrentTarget = NULL;
-    ICC_CurrentTransferLen = 0;
-    ICC_SetupHeaderReceive();
+    Icc_currentTarget = NULL;
+    Icc_currentTransferLen = 0;
+    Icc_setupHeaderReceive();
 }
 
-void ICC_SetPowerMode(uint8_t mode) {
+void Icc_setPowerMode(uint8_t mode) {
     switch(mode) {
         case ICC_POWER_MODE_FULL:
         case ICC_POWER_MODE_LOW:
         case ICC_POWER_MODE_SHUTDOWN:
-            uart_debug_sendstring("ICC Power Mode Changed: ");
-            uart_debug_printuint8(mode);
-            uart_debug_newline();
+            UartDebug_sendString("ICC Power Mode Changed: ");
+            UartDebug_printuint8(mode);
+            UartDebug_newline();
             break;
         default:
-            uart_debug_sendstring("ICC Power Mode Changed with invalid mode: ");
-            uart_debug_printuint8(mode);
-            uart_debug_newline();
+            UartDebug_sendString("ICC Power Mode Changed with invalid mode: ");
+            UartDebug_printuint8(mode);
+            UartDebug_newline();
             break;
     }
 }
 
-void ICC_PreparePowerMode(void) {
+void Icc_preparePowerMode(void) {
     //@TODO actually do power modes
     static uint8_t powerMode = ICC_POWER_MODE_FULL;
-    ICC_Target_ICC.outBuffer = &powerMode;
-    ICC_Target_ICC.outBufferLen = 1;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = &powerMode;
+    Icc_targetIcc.outBufferLen = 1;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
-void ICC_PrepareLastTransferInfo(uint8_t targetNum) {
+void Icc_prepareLastTransferInfo(uint8_t targetNum) {
     static uint8_t lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_LEN];
-    ICC_TargetInfo* target = ICC_LookupTargetInfo(targetNum);
+    Icc_TargetInfo* target = Icc_lookupTargetInfo(targetNum);
     if(NULL != target) {
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_TARGET_POS] = target->lastTransferDirection | target->number;
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_VALID_POS] = true;
@@ -664,16 +649,16 @@ void ICC_PrepareLastTransferInfo(uint8_t targetNum) {
         lastTransferInfoBuff[ICC_LAST_TRANSFER_INFO_LENGTH_MSB_POS] = 0;
     }
 
-    ICC_Target_ICC.outBuffer = lastTransferInfoBuff;
-    ICC_Target_ICC.outBufferLen = ICC_LAST_TRANSFER_INFO_LEN;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = lastTransferInfoBuff;
+    Icc_targetIcc.outBufferLen = ICC_LAST_TRANSFER_INFO_LEN;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
 /*
  * length controls how many bytes are made available in the output
  */
-void ICC_PrepareTargetList(uint16_t len) {
-    uint8_t* targetInfoBuffer = ICC_TargetInfoBuffer;
+void Icc_prepareTargetList(uint16_t len) {
+    uint8_t* targetInfoBuffer = Icc_targetInfoBuffer;
     if(len > ICC_TARGET_INFO_BUFFER_LENGTH) {
         len = ICC_TARGET_INFO_BUFFER_LENGTH; //limit length to prevent overruns
     }
@@ -681,18 +666,18 @@ void ICC_PrepareTargetList(uint16_t len) {
     if(len > 1) { //short-circuited for len == 1 since that's how the secure micro can discover how many targets we have
         for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
             uint32_t baseOffset = (i * ICC_TARGET_LIST_ITEM_LENGTH) + 1;
-            targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = ICC_TargetInfoList[i]->number;
-            if(ICC_TargetInfoList[i]->inBufferState == ICC_BUFFER_STATE_READY) {
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = ICC_TargetInfoList[i]->inBufferLenMax & 0xFF;
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (ICC_TargetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
+            targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = Icc_targetInfoList[i]->number;
+            if(Icc_targetInfoList[i]->inBufferState == ICC_BUFFER_STATE_READY) {
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = Icc_targetInfoList[i]->inBufferLenMax & 0xFF;
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (Icc_targetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
             }  else {
                 //not ready, return 0 for potential length
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = 0;
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = 0;
             }
-            if(ICC_TargetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = ICC_TargetInfoList[i]->outBufferLen & 0xFF;
-                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (ICC_TargetInfoList[i]->outBufferLen & 0xFF00) >> 8;
+            if(Icc_targetInfoList[i]->outBufferState == ICC_BUFFER_STATE_READY) {
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = Icc_targetInfoList[i]->outBufferLen & 0xFF;
+                targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (Icc_targetInfoList[i]->outBufferLen & 0xFF00) >> 8;
             }  else {
                 //not ready, return 0 for potential length
                 targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = 0;
@@ -700,58 +685,58 @@ void ICC_PrepareTargetList(uint16_t len) {
             }
         }
     }
-    ICC_Target_ICC.outBuffer = targetInfoBuffer;
-    ICC_Target_ICC.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = targetInfoBuffer;
+    Icc_targetIcc.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
 
 /*
  * length controls how many bytes are made available in the output
  */
-void ICC_PrepareTargetMaximumsList(uint16_t len) {
-    uint8_t* targetInfoBuffer = ICC_TargetInfoBuffer;
+void Icc_prepareTargetMaximumsList(uint16_t len) {
+    uint8_t* targetInfoBuffer = Icc_targetInfoBuffer;
     if(len > ICC_TARGET_INFO_BUFFER_LENGTH) {
         len = ICC_TARGET_INFO_BUFFER_LENGTH; //limit length to prevent overruns
     }
     targetInfoBuffer[0] = ICC_NUM_TARGETS;
     for(uint32_t i = 0; i < ICC_NUM_TARGETS; ++i) {
         uint32_t baseOffset = (i * ICC_TARGET_LIST_ITEM_LENGTH) + 1;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = ICC_TargetInfoList[i]->number;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_TARGET_POS] = Icc_targetInfoList[i]->number;
 
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = ICC_TargetInfoList[i]->inBufferLenMax & 0xFF;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (ICC_TargetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_LSB_POS] = Icc_targetInfoList[i]->inBufferLenMax & 0xFF;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_IN_MSB_POS] = (Icc_targetInfoList[i]->inBufferLenMax & 0xFF00) >> 8;
 
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = ICC_TargetInfoList[i]->outBufferLenMax & 0xFF;
-        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (ICC_TargetInfoList[i]->outBufferLenMax & 0xFF00) >> 8;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_LSB_POS] = Icc_targetInfoList[i]->outBufferLenMax & 0xFF;
+        targetInfoBuffer[baseOffset + ICC_TARGET_LIST_OUT_MSB_POS] = (Icc_targetInfoList[i]->outBufferLenMax & 0xFF00) >> 8;
 
     }
 
-    ICC_Target_ICC.outBuffer = targetInfoBuffer;
-    ICC_Target_ICC.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_READY;
+    Icc_targetIcc.outBuffer = targetInfoBuffer;
+    Icc_targetIcc.outBufferLen = ICC_NUM_TARGETS * ICC_TARGET_LIST_ITEM_LENGTH;
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_READY;
 }
 
-void ICC_SetUSBEnabled(bool usbEnabled) {
+void Icc_setUSBEnabled(bool usbEnabled) {
     if(usbEnabled) {
 #ifdef DEBUG_ICC
-    uart_debug_sendline("USB Enabled via ICC.\n");
+    UartDebug_sendline("USB Enabled via ICC.\n");
 #endif /* DEBUG_ICC */
         //@TODO  provide a callback or callback struct so this doesn't need a pointer to the USB device to start the USB
         // should also release the USB enable line
     } else {
         //must be disabling it
 #ifdef DEBUG_ICC
-        uart_debug_sendline("USB Disabled via ICC.\n");
+        UartDebug_sendline("USB Disabled via ICC.\n");
 #endif /* DEBUG_ICC */
     }
 
 }
 
-void ICC_ICCTransmitCompleteCallback(void) {
-    ICC_Target_ICC.outBufferState = ICC_BUFFER_STATE_IDLE;
-    ICC_Target_ICC.outBufferLen = 0;
-    ICC_Target_ICC.outBuffer = NULL;
+void Icc_iccTransmitCompleteCallback(void) {
+    Icc_targetIcc.outBufferState = ICC_BUFFER_STATE_IDLE;
+    Icc_targetIcc.outBufferLen = 0;
+    Icc_targetIcc.outBuffer = NULL;
 
 }
 
@@ -759,14 +744,14 @@ void ICC_ICCTransmitCompleteCallback(void) {
 bool ICC_EchoHandler(uint8_t* buff, uint16_t len) {
     if(ICC_Target_Echo.outBufferState == ICC_BUFFER_STATE_READY) {
         // some silly person hasn't retrieved their last echo data
-        uart_debug_sendline("Echo Data received while echo data still in buffer. Overwritten.");
+        UartDebug_sendline("Echo Data received while echo data still in buffer. Overwritten.");
     } else if (ICC_Target_Echo.outBufferState == ICC_BUFFER_STATE_DMA) {//should never be in DMA state
-        uart_debug_sendline("Echo Data received while echo data being sent out. How?");
+        UartDebug_sendline("Echo Data received while echo data being sent out. How?");
         return false; //do nothing in this case
     }
-    uart_debug_sendstring("Echoing ");
-    uart_debug_printuint32(len);
-    uart_debug_sendline(" bytes of data.\n");
+    UartDebug_sendString("Echoing ");
+    UartDebug_printuint32(len);
+    UartDebug_sendline(" bytes of data.\n");
     ICC_Target_Echo.outBuffer = buff;
     ICC_Target_Echo.outBufferLen = len;
     ICC_Target_Echo.outBufferState = ICC_BUFFER_STATE_READY; //flag it as ready-to-send
@@ -776,7 +761,7 @@ bool ICC_EchoHandler(uint8_t* buff, uint16_t len) {
 
 
 void ICC_EchoTransmitCompleteCallback(void) {
-    uart_debug_sendline("Echo Complete.\n");
+    UartDebug_sendline("Echo Complete.\n");
     ICC_Target_Echo.outBuffer = NULL;
     ICC_Target_Echo.outBufferLen = 0;
     ICC_Target_Echo.outBufferState = ICC_BUFFER_STATE_IDLE;

@@ -47,17 +47,16 @@
 /* Private variables ---------------------------------------------------------*/
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* USER CODE BEGIN 0 */
-/* USER CODE END 0 */
+
 /* Exported function prototypes -----------------------------------------------*/
 extern USBD_StatusTypeDef USBD_LL_BatteryCharging(USBD_HandleTypeDef *pdev);
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
-/* USER CODE BEGIN 1 */
+
 static void SystemClockConfig_Resume(void);
-/* USER CODE END 1 */
+
 void HAL_PCDEx_SetConnectionState(PCD_HandleTypeDef *hpcd, uint8_t state);
-extern void SystemClock_Config(void);
+extern void Init_systemClockConfig(void);
 
 /*******************************************************************************
                        LL Driver Callbacks (PCD -> USB Device Library)
@@ -69,10 +68,8 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
   GPIO_InitTypeDef GPIO_InitStruct;
   if(hpcd->Instance==USB_OTG_FS)
   {
-  /* USER CODE BEGIN USB_OTG_FS_MspInit 0 */
-
-  /* USER CODE END USB_OTG_FS_MspInit 0 */
   
+
     /**USB_OTG_FS GPIO Configuration    
     PA11     ------> USB_OTG_FS_DM
     PA12     ------> USB_OTG_FS_DP 
@@ -102,9 +99,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
     /* Peripheral interrupt init*/
     HAL_NVIC_SetPriority(OTG_FS_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
-  /* USER CODE BEGIN USB_OTG_FS_MspInit 1 */
 
-  /* USER CODE END USB_OTG_FS_MspInit 1 */
   }
 }
 
@@ -112,9 +107,7 @@ void HAL_PCD_MspDeInit(PCD_HandleTypeDef* hpcd)
 {
   if(hpcd->Instance==USB_OTG_FS)
   {
-  /* USER CODE BEGIN USB_OTG_FS_MspDeInit 0 */
 
-  /* USER CODE END USB_OTG_FS_MspDeInit 0 */
     /* Peripheral clock disable */
     __USB_OTG_FS_CLK_DISABLE();
   
@@ -139,9 +132,7 @@ void HAL_PCD_MspDeInit(PCD_HandleTypeDef* hpcd)
     /* Peripheral interrupt Deinit*/
     HAL_NVIC_DisableIRQ(OTG_FS_IRQn);
 
-  /* USER CODE BEGIN USB_OTG_FS_MspDeInit 1 */
 
-  /* USER CODE END USB_OTG_FS_MspDeInit 1 */
   }
 }
 
@@ -163,7 +154,7 @@ void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd)
   */
 void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
 {
-    //LED_UpdateUSBActivity();
+
     USBD_LL_DataOutStage(hpcd->pData, epnum, hpcd->OUT_ep[epnum].xfer_buff);
 }
 
@@ -175,7 +166,7 @@ void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
   */
 void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
 {
-    //LED_UpdateUSBActivity();
+
     USBD_LL_DataInStage(hpcd->pData, epnum, hpcd->IN_ep[epnum].xfer_buff);
 }
 
@@ -227,13 +218,13 @@ void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd)
   /* Inform USB library that core enters in suspend Mode */
   USBD_LL_Suspend(hpcd->pData);
   /*Enter in STOP mode */
-  /* USER CODE BEGIN 2 */
+
   if (hpcd->Init.low_power_enable)
   {
     /* Set SLEEPDEEP bit and SleepOnExit of Cortex System Control Register */
     SCB->SCR |= (uint32_t)((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));
   }
-  /* USER CODE END 2 */
+
 }
 
 /**
@@ -245,14 +236,14 @@ void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd)
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd)
 {
   __HAL_PCD_UNGATE_PHYCLOCK(hpcd);
-  /* USER CODE BEGIN 3 */
+
   if (hpcd->Init.low_power_enable)
   {    
     /* Reset SLEEPDEEP bit of Cortex System Control Register */
     SCB->SCR &= (uint32_t)~((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));    
     SystemClockConfig_Resume();
   }  
-  /* USER CODE END 3 */
+
   USBD_LL_Resume(hpcd->pData);
   
 }
@@ -493,11 +484,11 @@ USBD_StatusTypeDef  USBD_LL_Transmit (USBD_HandleTypeDef *pdev,
                                       uint8_t  *pbuf,
                                       uint16_t  size)
 {
-    /*uart_debug_sendline("LL Transmit:\n");
-    uart_debug_addToBuffer("EP: ", 4);
-    uart_debug_hexprint16(ep_addr);
-    uart_debug_newline();
-    uart_debug_hexdump(pbuf, size);*/
+    /*UartDebug_sendline("LL Transmit:\n");
+    UartDebug_addToBuffer("EP: ", 4);
+    UartDebug_hexprint16(ep_addr);
+    UartDebug_newline();
+    UartDebug_hexdump(pbuf, size);*/
 
   HAL_PCD_EP_Transmit(pdev->pData, ep_addr, pbuf, size);
   return USBD_OK;   
@@ -532,19 +523,7 @@ uint32_t USBD_LL_GetRxDataSize  (USBD_HandleTypeDef *pdev, uint8_t  ep_addr)
   return HAL_PCD_EP_GetRxCount(pdev->pData, ep_addr);
 }
 
-/**
-  * @brief  GPIO EXTI Callback function
-  *         Handle USB VBUS detection upon External interrupt
-  * @param  GPIO_Pin
-  * @retval None
-  */
-/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if (GPIO_Pin == GPIO_PIN_9)
-  {
-    HAL_PCDEx_BCD_VBUSDetect (&hpcd_USB_OTG_FS);
-  }
-}*/
+
 
 //replaces the general GPIO callback above with a unique one
 void USBD_Conf_CallbackReceived(void) {
@@ -565,7 +544,7 @@ void HAL_PCDEx_LPM_Callback(PCD_HandleTypeDef *hpcd, PCD_LPM_MsgTypeDef msg)
   case PCD_LPM_L0_ACTIVE:
     if (hpcd->Init.low_power_enable)
     {
-      SystemClock_Config();
+      Init_systemClockConfig();
       
       /* Reset SLEEPDEEP bit of Cortex System Control Register */
       SCB->SCR &= (uint32_t)~((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));
@@ -629,7 +608,7 @@ void USBD_static_free(void *p)
   */
 static void SystemClockConfig_Resume(void)
 {
-  SystemClock_Config();
+  Init_systemClockConfig();
 }
 /* USER CODE END 5 */
 

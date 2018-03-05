@@ -38,25 +38,6 @@
 #include "usbd_conf.h"
 #include "pat-config.h"
 
-/** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
-  * @{
-  */
-
-/** @defgroup USBD_DESC 
-  * @brief USBD descriptors module
-  * @{
-  */ 
-
-/** @defgroup USBD_DESC_Private_TypesDefinitions
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-/** @defgroup USBD_DESC_Private_Defines
-  * @{
-  */ 
 #define USBD_VID     0xB105 //
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "Binary Solutions"
@@ -66,28 +47,12 @@
 #define USBD_PID_FS     0x0003
 #endif
 #define USBD_PRODUCT_STRING_FS     "Patronus Development Unit"
-/* USER CODE BEGIN SERIALNUMBER_STRING_FS */
 #define USBD_SERIALNUMBER_STRING_FS     "00000000001B"
-/* USER CODE END SERIALNUMBER_STRING_FS */
 #define USBD_CONFIGURATION_STRING_FS     "Config String"
 #define USBD_INTERFACE_STRING_FS     "Interface String"
 
 #define USB_SIZ_BOS_DESC            0x0C
 
-/**
-  * @}
-  */ 
-
-/** @defgroup USBD_DESC_Private_Macros
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-/** @defgroup USBD_DESC_Private_Variables
-  * @{
-  */ 
 uint8_t *     USBD_FS_DeviceDescriptor( USBD_SpeedTypeDef speed , uint16_t *length);
 uint8_t *     USBD_FS_LangIDStrDescriptor( USBD_SpeedTypeDef speed , uint16_t *length);
 uint8_t *     USBD_FS_ManufacturerStrDescriptor ( USBD_SpeedTypeDef speed , uint16_t *length);

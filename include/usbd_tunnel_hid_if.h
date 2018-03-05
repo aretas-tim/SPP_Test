@@ -69,7 +69,7 @@ extern USBD_TUNNEL_HID_ItfTypeDef  USBD_TUNNEL_HID_Callbacks;
 #define TUNNEL_HID_VERBOSE 1 /* ALL THE VERBOSITY */
 #endif /* TUNNEL_HID_VERBOSE */
 
-void TUNNEL_HID_SetDisconnectedCallback(void (*callback)(void));
+void TunnelHid_setDisconnectedCallback(void (*callback)(void));
 //void TUNNEL_HID_Reset(void);
 
 //size_t TUNNEL_HID_MessageAvailable(void);
@@ -84,7 +84,7 @@ void TUNNEL_HID_SetDisconnectedCallback(void (*callback)(void));
 //void TUNNEL_HID_CheckTimeout(void);
 //void TUNNEL_HID_TransmitInitTimeoutCallback(void);
 
-TunnelShimContext* TUNNEL_HID_GetShimContext(void);
+TunnelShim_Context* TunnelHid_getShimContext(void);
 
 #ifdef __cplusplus
 }

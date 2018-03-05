@@ -16,37 +16,30 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 
-//static int8_t TUNNEL_HID_Init     (void);
-//static int8_t TUNNEL_HID_DeInit   (void);
-//static int8_t TUNNEL_HID_OutEvent (uint8_t* report);
-void TUNNEL_Shim_TransmitCompleteCallback(TunnelShimContext* ctx);
 
-
-void TUNNEL_Shim_ReceiveInitiationPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_ReceiveContinuationPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_HandleBroadcastPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_InitHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_ReleaseChannel(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_ResynchHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_HandleRetransmitRequest(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_TransmitAcknowledgeHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-void TUNNEL_Shim_TransmitCompleteHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen);
-
-uint16_t TUNNEL_Shim_DoSend(TunnelShimContext* ctx, uint8_t* response, uint16_t len, uint8_t command);
-uint16_t TUNNEL_Shim_SendImmediate(TunnelShimContext* ctx, uint8_t* immediateData, uint16_t len, uint8_t command, uint8_t channel);
-uint16_t TUNNEL_Shim_SendImmediateError(TunnelShimContext* ctx, uint8_t errorCode, uint8_t channel);
-uint16_t TUNNEL_Shim_SendPing(TunnelShimContext* ctx, uint8_t* response, uint16_t len);
-
-bool TUNNEL_Shim_GetNextContinuationPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoingPacket);
-
-void TUNNEL_Shim_ResetTransaction(TunnelShimContext *ctx);
+void TunnelShim_transmitCompleteCallback(TunnelShim_Context* ctx);
+void TunnelShim_receiveInitiationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_receiveContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_handleBroadcastPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_initHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_releaseChannel(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_resynchHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_handleRetransmitRequest(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_transmitAcknowledgeHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+void TunnelShim_transmitCompleteHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen);
+uint16_t TunnelShim_doSend(TunnelShim_Context* ctx, uint8_t* response, uint16_t len, uint8_t command);
+uint16_t TunnelShim_sendImmediate(TunnelShim_Context* ctx, uint8_t* immediateData, uint16_t len, uint8_t command, uint8_t channel);
+uint16_t TunnelShim_sendImmediateError(TunnelShim_Context* ctx, uint8_t errorCode, uint8_t channel);
+uint16_t TunnelShim_sendPing(TunnelShim_Context* ctx, uint8_t* response, uint16_t len);
+bool TunnelShim_getNextContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* outgoingPacket);
+void TunnelShim_resetTransaction(TunnelShim_Context *ctx);
 
 
 /**
  * gets the number of packets required for a given number of bytes using the provided context
  * returns 255 if numBytes is too large to be handled by the provided context
  */
-uint8_t TUNNEL_Shim_GetNumPacketsRequired(TunnelShimContext* ctx, uint16_t numBytes) {
+uint8_t TunnelShim_getNumPacketsRequired(TunnelShim_Context* ctx, uint16_t numBytes) {
     uint32_t maxLen = ctx->packetByteLen - INITIATION_PACKET_OVERHEAD;
     maxLen += TUNNEL_SHIM_MAX_SEQUENCE_NUM * (ctx->packetByteLen - CONTINUATION_PACKET_OVERHEAD);
     if(maxLen < numBytes) {
@@ -67,7 +60,7 @@ uint8_t TUNNEL_Shim_GetNumPacketsRequired(TunnelShimContext* ctx, uint16_t numBy
  * gets the number of bytes from an Initiation packet
  * returns 0 if this is not an initiation packet
  */
-uint16_t TUNNEL_Shim_GetNumBytesFromPacket(TunnelShimPacket* packet) {
+uint16_t TunnelShim_getNumBytesFromPacket(TunnelShim_Packet* packet) {
     if((packet->id & TUNNEL_SHIM_ID_MASK) == TUNNEL_SHIM_ID_INITIATION) {
         uint16_t dataLength = packet->initiation.byteCountHigh;//(((uint16_t) packet->initiation.byteCountHigh) << 8) + packet->initiation.byteCountLow;
         dataLength <<= 8; //shift up
@@ -78,88 +71,31 @@ uint16_t TUNNEL_Shim_GetNumBytesFromPacket(TunnelShimPacket* packet) {
     }
 }
 
-void setBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return;
-    } else {
-        map[byteNum] |= (uint8_t) 1 << (bitNum & 0x7);
-    }
-}
 
-void clearBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return;
-    } else {
-        map[byteNum] &= ~((uint8_t) 1 << (bitNum & 0x7));
-    }
-}
-
-bool checkBitInMap(uint16_t bitNum, uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = bitNum >> 3;
-    if(byteNum >= mapByteLen) {
-        return false;
-    } else {
-        return (map[byteNum] & ((uint8_t) 1 << (bitNum & 0x7))) ? true : false; //abuse conditional so we're not returning "128" for true or something
-    }
-}
-
-/**
- * gets the bit number of the lowest unset bit in the map
- * just a linear search.
- * this is not designed for use on large maps
- * returns BITMAP_NO_BIT_FOUND (0xFFFFFFFF) if there are no unset bits in the map
- * otherwise returns from 0 to 524,287 (2^19 less one) depending on the length of the map
- */
-uint32_t getLowestUnsetBitInMap(uint8_t* map, uint16_t mapByteLen) {
-    uint16_t byteNum = 0;
-    while((map[byteNum] == 0xFF) && (byteNum < mapByteLen)) {
-        byteNum++;
-    }
-    if(byteNum < mapByteLen) { //at least one bit in this byte is 0
-        uint32_t bitNum = 0;
-        uint8_t byte = map[byteNum];
-        //search linearly through the byte, LSBit to MSBit
-        for(uint8_t b = 1; b; b <<= 1) {
-            if(byte & b) {
-                bitNum++; //increment this
-            } else {
-                //not set, found it!
-                break;
-            }
-        }
-        bitNum += byteNum << 3; //add our byte number
-        return bitNum;
-
-    } else {
-        return BITMAP_NO_BIT_FOUND; //error, no bit found
-    }
-}
 
 
 //bool isInitiationPacket
 
 
 /**
- * initializes a TunnelShimContext, with the provided buffer as backing for the packets and the given parameters
+ * initializes a TunnelShim_Context, with the provided buffer as backing for the packets and the given parameters
  */
-uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_t bufferLen, uint16_t packetLen, TunnelShimPacketFunctions* funcs) {
+uint8_t TunnelShim_initContext(TunnelShim_Context* ctx, uint8_t* buffer, uint16_t bufferLen, uint16_t packetLen, TunnelShim_PacketFunctions* funcs) {
     if((buffer == NULL) || (ctx == NULL)) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Cannot Init TunnelShimContext with null context or data buffer.\n");
+        UartDebug_sendline("Cannot Init TunnelShim_Context with null context or data buffer.\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_NO_CONTEXT;
     }
     if(packetLen < INITIATION_PACKET_OVERHEAD) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Cannot Init TunnelShimContext with short packet length.\n");
+        UartDebug_sendline("Cannot Init TunnelShim_Context with short packet length.\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_PACKETS_TOO_SHORT;
     }
     if(funcs == NULL || funcs->transmit == NULL) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Cannot Init TunnelShimContext with no function pointers.\n");
+        UartDebug_sendline("Cannot Init TunnelShim_Context with no function pointers.\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_NO_TX_FUNC;
     }
@@ -173,7 +109,7 @@ uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_
     /*                      minimum payload                packet buffer     immediate packet buffers (may be shorter than a full packet) */
     if(bufferLen < minBufferLen) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Cannot init context without sufficient buffer space.\n");
+        UartDebug_sendline("Cannot init context without sufficient buffer space.\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_NOT_ENOUGH_BUFFER_SPACE;
     }
@@ -181,10 +117,10 @@ uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_
 
     uint8_t* buffPtr = buffer;
     for(uint8_t i = 0; i < TUNNEL_SHIM_NUM_IMM_BUFFERS; ++i) {
-        ctx->immediatePacketBuffers[i] = (TunnelShimPacket*) buffPtr;
+        ctx->immediatePacketBuffers[i] = (TunnelShim_Packet*) buffPtr;
         buffPtr += ctx->immediateBufferByteLen;
     }
-    ctx->packetBuffer = (TunnelShimPacket*) (buffPtr);
+    ctx->packetBuffer = (TunnelShim_Packet*) (buffPtr);
     buffPtr += packetLen;
     ctx->dataBuffer = buffPtr;
     ctx->dataBufferLen = bufferLen - (packetLen + ctx->immediateBufferByteLen * 2);
@@ -200,8 +136,8 @@ uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_
 
 
     memset(ctx->channelsAllocatedMap, 0, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
-    setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
-    setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 
     ctx->commandInFlight = TUNNEL_SHIM_COMMAND_NONE;
     ctx->currentChannel = 0;
@@ -227,10 +163,10 @@ uint8_t TUNNEL_Shim_InitContext(TunnelShimContext* ctx, uint8_t* buffer, uint16_
 /* de-initializes a context
  * do not use a de-initialized context without re-initializing it!
  */
-uint8_t TUNNEL_Shim_DeInit(TunnelShimContext* ctx) {
+uint8_t TunnelShim_deInit(TunnelShim_Context* ctx) {
     if(ctx == NULL) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Cannot de-init TunnelShimContext with null context .\n");
+        UartDebug_sendline("Cannot de-init TunnelShim_Context with null context .\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_NO_CONTEXT; //failed? @TODO fix this
     }
@@ -279,7 +215,7 @@ uint8_t TUNNEL_Shim_DeInit(TunnelShimContext* ctx) {
 /**
  * sets the callback to call when the USB has been disconnected to end any ongoing tunnel
  */
-void TUNNEL_Shim_SetDisconnectedCallback(TunnelShimContext* ctx, void (*callback)(void)) {
+void TunnelShim_setDisconnectedCallback(TunnelShim_Context* ctx, void (*callback)(void)) {
     if(ctx == NULL) {
         return; // TUNNEL_SHIM_CONTEXT_ERROR_NO_CONTEXT;
     } else {
@@ -291,7 +227,7 @@ void TUNNEL_Shim_SetDisconnectedCallback(TunnelShimContext* ctx, void (*callback
 /**
   * receives a packet from the lower level
   */
-uint8_t TUNNEL_Shim_RecievePacket(TunnelShimContext* ctx, uint8_t* packetBytes, uint16_t packetLen) {
+uint8_t TunnelShim_recievePacket(TunnelShim_Context* ctx, uint8_t* packetBytes, uint16_t packetLen) {
     if(ctx == NULL) {
         return TUNNEL_SHIM_CONTEXT_ERROR_NO_CONTEXT;
     }
@@ -299,63 +235,63 @@ uint8_t TUNNEL_Shim_RecievePacket(TunnelShimContext* ctx, uint8_t* packetBytes, 
         return TUNNEL_SHIM_CONTEXT_ERROR_NO_DATA;
     }
 
-    //uart_debug_sendline("Packet Received:\n");
-    //uart_debug_hexdump(packetBytes, packetLen);
+    //UartDebug_sendline("Packet Received:\n");
+    //UartDebug_hexdump(packetBytes, packetLen);
 
-    TunnelShimPacket* packet = (TunnelShimPacket*) packetBytes; //cast our incoming packet
+    TunnelShim_Packet* packet = (TunnelShim_Packet*) packetBytes; //cast our incoming packet
 
     if(ctx->state == TUNNEL_SHIM_UNCONFIGURED) {
         //can't do anything
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Tunnel shim packet received in unconfigured state.\n");
+        UartDebug_sendline("Tunnel shim packet received in unconfigured state.\n");
 #endif
         return TUNNEL_SHIM_CONTEXT_ERROR_NOT_CONFIGURED;
     }
     if((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) == TUNNEL_SHIM_CHANNEL_BROADCAST) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-        uart_debug_sendline("Packet on broadcast channel received.\n");
+        UartDebug_sendline("Packet on broadcast channel received.\n");
 #endif /* DEBUG_PRINT_SHIM */
-        TUNNEL_Shim_HandleBroadcastPacket(ctx, packet, packetLen);
+        TunnelShim_handleBroadcastPacket(ctx, packet, packetLen);
     } else if((packet->id & TUNNEL_SHIM_ID_MASK) == TUNNEL_SHIM_ID_INITIATION) {
         //initiation packet
         switch(packet->initiation.command & (~TUNNEL_SHIM_ID_MASK)) {
             //not unconfigured
             case TUNNEL_SHIM_COMMAND_MESSAGE:
             case TUNNEL_SHIM_COMMAND_PING:
-                TUNNEL_Shim_ReceiveInitiationPacket(ctx, packet, packetLen);
+                TunnelShim_receiveInitiationPacket(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_RELEASE:
-                TUNNEL_Shim_ReleaseChannel(ctx, packet, packetLen);
+                TunnelShim_releaseChannel(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_INIT:
-                TUNNEL_Shim_InitHandler(ctx, packet, packetLen);
+                TunnelShim_initHandler(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_COMPLETE:
-                TUNNEL_Shim_TransmitCompleteHandler(ctx, packet, packetLen);
+                TunnelShim_transmitCompleteHandler(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_ACKNOWLEDGE:
-                //uart_debug_hexprint32(hhid->transmitState);
-                //uart_debug_putchar(' ');
-                TUNNEL_Shim_TransmitAcknowledgeHandler(ctx, packet, packetLen);
-                //uart_debug_hexprint32(hhid->transmitState);
-                //uart_debug_newline();
+                //UartDebug_hexprint32(hhid->transmitState);
+                //UartDebug_putchar(' ');
+                TunnelShim_transmitAcknowledgeHandler(ctx, packet, packetLen);
+                //UartDebug_hexprint32(hhid->transmitState);
+                //UartDebug_newline();
                 break;
             case TUNNEL_SHIM_COMMAND_RESYNCH:
-                TUNNEL_Shim_ResynchHandler(ctx, packet, packetLen);
+                TunnelShim_resynchHandler(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_RETRANSMIT:
-                TUNNEL_Shim_HandleRetransmitRequest(ctx, packet, packetLen);
+                TunnelShim_handleRetransmitRequest(ctx, packet, packetLen);
                 break;
             case TUNNEL_SHIM_COMMAND_ERROR:
                 //this is odd, we should be the ones sending error messages
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                uart_debug_sendline("Tunnel Shim Error packet received.\n");
+                UartDebug_sendline("Tunnel Shim Error packet received.\n");
 #endif
                 break;
             case TUNNEL_SHIM_COMMAND_NONE:
             default:
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                uart_debug_sendline("Unexpected initiation packet command received.\n");
+                UartDebug_sendline("Unexpected initiation packet command received.\n");
 #endif
                 break;
         }
@@ -363,11 +299,11 @@ uint8_t TUNNEL_Shim_RecievePacket(TunnelShimContext* ctx, uint8_t* packetBytes, 
         //must be continuation packet
         if(ctx->state == TUNNEL_SHIM_RECEIVE) {
             //receive packet
-            TUNNEL_Shim_ReceiveContinuationPacket(ctx, packet, packetLen);
+            TunnelShim_receiveContinuationPacket(ctx, packet, packetLen);
         } else {
             //not expecting a continuation packet
             //request a resynch as we likely lost the initiation packet
-            TUNNEL_Shim_SendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_RESYNCH, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+            TunnelShim_sendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_RESYNCH, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
         }
     }
     return (0);
@@ -376,7 +312,7 @@ uint8_t TUNNEL_Shim_RecievePacket(TunnelShimContext* ctx, uint8_t* packetBytes, 
 /* basic callback to let us know when all packets have been sent out
  *
  */
-void TUNNEL_Shim_TransmitCompleteCallback(TunnelShimContext* ctx) {
+void TunnelShim_transmitCompleteCallback(TunnelShim_Context* ctx) {
     ctx->state = TUNNEL_SHIM_TRANSMIT_COMPLETE;
 }
 
@@ -384,7 +320,7 @@ void TUNNEL_Shim_TransmitCompleteCallback(TunnelShimContext* ctx) {
  * returns the number of bytes available from the out buffer, if the out buffer has a complete message waiting
  * if nothing is available or the message is incomplete, returns 0
  */
-size_t TUNNEL_Shim_MessageAvailable(TunnelShimContext* ctx) {
+size_t TunnelShim_messageAvailable(TunnelShim_Context* ctx) {
     if(ctx == NULL) {
         return 0;
     }
@@ -397,9 +333,9 @@ size_t TUNNEL_Shim_MessageAvailable(TunnelShimContext* ctx) {
     }
     if(ctx->funcs->enableInterrupt != NULL) {
         //2017-10-24 do not enable this block. it'll overrun memcpy and ruin your day.
-        //uart_debug_sendstring("Tunnel Shim Enable Interrupt In Message Available at: ");
-        //uart_debug_hexprint32((uint32_t) ctx->funcs->enableInterrupt); //yes it'll complain about the cast
-        //uart_debug_newline();
+        //UartDebug_sendString("Tunnel Shim Enable Interrupt In Message Available at: ");
+        //UartDebug_hexprint32((uint32_t) ctx->funcs->enableInterrupt); //yes it'll complain about the cast
+        //UartDebug_newline();
 
         ctx->funcs->enableInterrupt();
     }
@@ -416,7 +352,7 @@ size_t TUNNEL_Shim_MessageAvailable(TunnelShimContext* ctx) {
  * @param channel (out variable) a pointer to a uint8_t that will be set to the channel the message was received on
  * @returns the number of valid bytes in the message, if 0, no message was available or it had a length of 0
  */
-size_t TUNNEL_Shim_GetMessage(TunnelShimContext* ctx, uint8_t** message, uint8_t* channel) {
+size_t TunnelShim_getMessage(TunnelShim_Context* ctx, uint8_t** message, uint8_t* channel) {
     if(ctx == NULL) {
         return 0;
     }
@@ -430,7 +366,7 @@ size_t TUNNEL_Shim_GetMessage(TunnelShimContext* ctx, uint8_t** message, uint8_t
     *channel = ctx->currentChannel;
     ctx->state = TUNNEL_SHIM_PROCESSING;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-    uart_debug_sendline("Shim Message Retrieved by Upper Layer.\n");
+    UartDebug_sendline("Shim Message Retrieved by Upper Layer.\n");
 #endif
     if(ctx->funcs->enableInterrupt != NULL) {
         ctx->funcs->enableInterrupt();
@@ -446,16 +382,16 @@ size_t TUNNEL_Shim_GetMessage(TunnelShimContext* ctx, uint8_t** message, uint8_t
  * handles an incoming retransmit request from the host
  * internal use, ctx, packet and packetLen should all have been checked and be valid
  */
-void TUNNEL_Shim_HandleRetransmitRequest(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_handleRetransmitRequest(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     if(ctx->currentChannel != (packet->channel & TUNNEL_SHIM_CHANNEL_MASK)) {
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
     } else if((ctx->state == TUNNEL_SHIM_TRANSMIT) || (ctx->state == TUNNEL_SHIM_TRANSMIT_COMPLETE)) {
         //USBD_TUNNEL_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->tunnelHIDData);
         //uint8_t lowestRetransmittedPacketNum = TUNNEL_SHIM_MAX_SEQUENCE_NUM;
-        uint16_t byteCount = TUNNEL_Shim_GetNumBytesFromPacket(packet);
+        uint16_t byteCount = TunnelShim_getNumBytesFromPacket(packet);
         if(packetLen < byteCount + INITIATION_PACKET_OVERHEAD) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendline("Short PacketLen in retransmit request.\n");
+            UartDebug_sendline("Short PacketLen in retransmit request.\n");
 #endif
             byteCount = packetLen - INITIATION_PACKET_OVERHEAD;
         }
@@ -463,7 +399,7 @@ void TUNNEL_Shim_HandleRetransmitRequest(TunnelShimContext* ctx, TunnelShimPacke
         for(uint16_t i = 0; i < byteCount; ++i) {
             uint8_t packetToRetransmit = packet->initiation.data[i];
             if(packetToRetransmit < ctx->outgoingPacketCount) {
-                clearBitInMap(packetToRetransmit, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+                Utilities_clearBitInMap(packetToRetransmit, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
                 /*if(packetToRetransmit < lowestRetransmittedPacketNum) {
                     lowestRetransmittedPacketNum = packetToRetransmit;
                 }*/
@@ -472,20 +408,20 @@ void TUNNEL_Shim_HandleRetransmitRequest(TunnelShimContext* ctx, TunnelShimPacke
         if(ctx->state == TUNNEL_SHIM_TRANSMIT_COMPLETE) {
             ctx->state = TUNNEL_SHIM_TRANSMIT; //set this back to transmit
             if(!ctx->isTransmitting) { //if nothing is being sent
-                //TunnelShimPacket* pkt = NULL;
-                bool doSend = TUNNEL_Shim_GetNextContinuationPacket(ctx, ctx->packetBuffer);
+                //TunnelShim_Packet* pkt = NULL;
+                bool doSend = TunnelShim_getNextContinuationPacket(ctx, ctx->packetBuffer);
                 if(doSend) {
                     ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen); //send something
                     ctx->isTransmitting = true;
                 } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                    uart_debug_sendline("No packet found to send from retransmit request.\n");
+                    UartDebug_sendline("No packet found to send from retransmit request.\n");
 #endif
                 }
             } //else an immediate is being sent, will get picked up
         } //else should get picked up in normal GetNextTransmitPacket call
     } else {
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_FAILED, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK)); //could not resynch
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_FAILED, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK)); //could not resynch
     }
 
 }
@@ -494,39 +430,39 @@ void TUNNEL_Shim_HandleRetransmitRequest(TunnelShimContext* ctx, TunnelShimPacke
  * InitHandler, handles channel initiation packets, returning the nonce and either a channel or the reserved channel
  * indicating no channels available
  */
-void TUNNEL_Shim_InitHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
-    uint16_t byteLen = TUNNEL_Shim_GetNumBytesFromPacket(packet);
+void TunnelShim_initHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
+    uint16_t byteLen = TunnelShim_getNumBytesFromPacket(packet);
     if(byteLen != TUNNEL_SHIM_INIT_NONCE_LEN || packetLen <= TUNNEL_SHIM_INIT_NONCE_LEN) {
         //we can't actually inform the requester because we have insufficient information to successfully contact them
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Bad Shim Init Request Received.\n");
+        UartDebug_sendline("Bad Shim Init Request Received.\n");
 #endif
         return;
     }
 
     uint8_t initResponse[TUNNEL_SHIM_INIT_NONCE_LEN + 1];
     memcpy(initResponse, packet->initiation.data, TUNNEL_SHIM_INIT_NONCE_LEN);
-    uint32_t unallocatedChannel = getLowestUnsetBitInMap(ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    uint32_t unallocatedChannel = Utilities_getLowestUnsetBitInMap(ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
     if(unallocatedChannel == BITMAP_NO_BIT_FOUND) {
         //can't allocate channel, send back the reserved channel ID which indicates failure
         initResponse[TUNNEL_SHIM_INIT_NONCE_LEN] = TUNNEL_SHIM_CHANNEL_RESERVED;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Channel Allocation Failed. No Channels left.");
+        UartDebug_sendline("Channel Allocation Failed. No Channels left.");
 #endif
     } else {
         //allocate the channel and send it back
         initResponse[TUNNEL_SHIM_INIT_NONCE_LEN] = (uint8_t) (unallocatedChannel & 0xFF);
-        setBitInMap(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN], ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+        Utilities_setBitInMap(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN], ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendstring("Allocated channel: ");
-        uart_debug_printuint8(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN]);
-        uart_debug_newline();
+        UartDebug_sendString("Allocated channel: ");
+        UartDebug_printuint8(initResponse[TUNNEL_SHIM_INIT_NONCE_LEN]);
+        UartDebug_newline();
 #endif
     }
-    uint16_t sendResult = TUNNEL_Shim_SendImmediate(ctx, initResponse, TUNNEL_SHIM_INIT_NONCE_LEN + 1, TUNNEL_SHIM_COMMAND_INIT, TUNNEL_SHIM_CHANNEL_BROADCAST);
+    uint16_t sendResult = TunnelShim_sendImmediate(ctx, initResponse, TUNNEL_SHIM_INIT_NONCE_LEN + 1, TUNNEL_SHIM_COMMAND_INIT, TUNNEL_SHIM_CHANNEL_BROADCAST);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
     if(sendResult != (TUNNEL_SHIM_INIT_NONCE_LEN + 1)) {
-        uart_debug_sendline("Error on send in Tunnel Shim Init Handler.\n");
+        UartDebug_sendline("Error on send in Tunnel Shim Init Handler.\n");
     }
 #endif
 }
@@ -535,19 +471,19 @@ void TUNNEL_Shim_InitHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, u
  * handles any broadcast packets received
  * currently just init commands are sent over the broadcast channel
  */
-void TUNNEL_Shim_HandleBroadcastPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_handleBroadcastPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     //if(ctx->currentChannel == TUNNEL_SHIM_CHANNEL_BROADCAST) {
         //@TODO replace this with a switch statement if we get more broadcast stuff
         if((packet->initiation.command & (~TUNNEL_SHIM_ID_MASK)) == TUNNEL_SHIM_COMMAND_INIT) {
-            TUNNEL_Shim_InitHandler(ctx, packet, packetLen);
+            TunnelShim_initHandler(ctx, packet, packetLen);
         } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendline("Unknown Broadcast command received.\n");
+            UartDebug_sendline("Unknown Broadcast command received.\n");
 #endif
             //don't send anything, as we don't know who sent it
         }
     /*} else {
-        uart_debug_sendline("Non-Broadcast packet routed to broadcast packet handler.\n");
+        UartDebug_sendline("Non-Broadcast packet routed to broadcast packet handler.\n");
     }*/
 }
 
@@ -555,22 +491,22 @@ void TUNNEL_Shim_HandleBroadcastPacket(TunnelShimContext* ctx, TunnelShimPacket*
  * releases a channel
  * now with actual channel release action
  */
-void TUNNEL_Shim_ReleaseChannel(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_releaseChannel(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen; //unused
     uint8_t channel = (packet->channel & TUNNEL_SHIM_CHANNEL_MASK);
     //if the requesting channel is the active channel (currently receiving/processing/transmitting), can't end the channel
     if((channel == ctx->currentChannel) && ((ctx->state != TUNNEL_SHIM_READY) || (ctx->state != TUNNEL_SHIM_TRANSMIT_COMPLETE))) {
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_RELEASE_IMPOSSIBLE, channel);
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_RELEASE_IMPOSSIBLE, channel);
 
     } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendstring("Tunnel Shim Channel Released: ");
-        uart_debug_printuint8(channel);
-        uart_debug_newline();
+        UartDebug_sendString("Tunnel Shim Channel Released: ");
+        UartDebug_printuint8(channel);
+        UartDebug_newline();
 #endif
         //should not be coming in as an immediate
-        TUNNEL_Shim_DoSend(NULL, 0, TUNNEL_SHIM_COMMAND_RELEASE, channel);
-        clearBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+        TunnelShim_doSend(NULL, 0, TUNNEL_SHIM_COMMAND_RELEASE, channel);
+        Utilities_clearBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
     }
 }
 
@@ -579,18 +515,18 @@ void TUNNEL_Shim_ReleaseChannel(TunnelShimContext* ctx, TunnelShimPacket* packet
  * on receive or if there's a message waiting (but hasn't made it to processing), it cancels the command
  * on transmit, resets the entire transmit and starts it sending from the first packet
  */
-void TUNNEL_Shim_ResynchHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_resynchHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen; //unusued
     if((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) != ctx->currentChannel) {
         //drop packet, not for the active channel
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
     } else {
         //for current channel
         switch(ctx->state) {
             case TUNNEL_SHIM_READY:
                 //should never be received in a ready state, or gets picked up by fact there should be no active channel
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                uart_debug_sendline("Resynch received when in ready state. Packet Dropped.\n");
+                UartDebug_sendline("Resynch received when in ready state. Packet Dropped.\n");
 #endif
                 break;
             case TUNNEL_SHIM_RECEIVE:
@@ -607,14 +543,14 @@ void TUNNEL_Shim_ResynchHandler(TunnelShimContext* ctx, TunnelShimPacket* packet
                 break;
             case TUNNEL_SHIM_PROCESSING:
                 //impossible
-                TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_RESYNCH_IMPOSSIBLE, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+                TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_RESYNCH_IMPOSSIBLE, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
                 break;
             case TUNNEL_SHIM_TRANSMIT:
             case TUNNEL_SHIM_TRANSMIT_COMPLETE:
                 memset(ctx->packetsMap, 0, TUNNEL_SHIM_PACKET_BITMAP_LEN); //clear this
                 ctx->state = TUNNEL_SHIM_TRANSMIT; //set this back to transmit if it was complete
                 //send it all again
-                TUNNEL_Shim_DoSend(ctx, ctx->outgoingData, ctx->outgoingByteCount, ctx->commandInFlight);
+                TunnelShim_doSend(ctx, ctx->outgoingData, ctx->outgoingByteCount, ctx->commandInFlight);
                 break;
             default:
                 break;
@@ -625,7 +561,7 @@ void TUNNEL_Shim_ResynchHandler(TunnelShimContext* ctx, TunnelShimPacket* packet
 /**
  * stops our transmit timeout, as the host has acknowledge that we're sending in a response
  */
-void TUNNEL_Shim_TransmitAcknowledgeHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_transmitAcknowledgeHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen;
     if(((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) == ctx->currentChannel) && (TUNNEL_SHIM_TRANSMIT_ACK_WAIT == ctx->state)) {
         //host has acknowledge we're transmitting, do not have to re-transmit initiation packet after timeout
@@ -634,7 +570,7 @@ void TUNNEL_Shim_TransmitAcknowledgeHandler(TunnelShimContext* ctx, TunnelShimPa
         ctx->timeoutTicksRemaining = 0;
         ctx->ackWaitCountRemaining = 0;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-        uart_debug_sendline("Transmit Acknowledged by host.\n");
+        UartDebug_sendline("Transmit Acknowledged by host.\n");
 #endif
 
         //USBD_TUNNEL_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->tunnelHIDData);
@@ -642,27 +578,27 @@ void TUNNEL_Shim_TransmitAcknowledgeHandler(TunnelShimContext* ctx, TunnelShimPa
             ctx->state = TUNNEL_SHIM_TRANSMIT;
             //TUNNEL_Shim_SendRemainingPackets(ctx);
             if(!ctx->isTransmitting) {
-                //TunnelShimPacket* pkt = NULL;
-                bool doSend = TUNNEL_Shim_GetNextContinuationPacket(ctx, ctx->packetBuffer);
+                //TunnelShim_Packet* pkt = NULL;
+                bool doSend = TunnelShim_getNextContinuationPacket(ctx, ctx->packetBuffer);
                 if(doSend) {
                     ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
                     ctx->isTransmitting = true;
                 } else {
                     //no packet to send?
-                    uart_debug_sendline("Tunnel Shim Transmit Complete in Ack. Handler by NULL next packet.\n");
+                    UartDebug_sendline("Tunnel Shim Transmit Complete in Ack. Handler by NULL next packet.\n");
                     ctx->state = TUNNEL_SHIM_TRANSMIT_COMPLETE;
                 }
             } //else will get picked up in callback to GetNextTransmitPacket(...) by lower layer
 
         } else { //transmit complete
-            uart_debug_sendline("Tunnel Shim Transmit Complete in Ack. Handler.\n");
+            UartDebug_sendline("Tunnel Shim Transmit Complete in Ack. Handler.\n");
             ctx->state = TUNNEL_SHIM_TRANSMIT_COMPLETE;
         }
     } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendstring("Transmit Acknowledge received but not waiting for acknowledge (");
-        uart_debug_printuint8(ctx->state);
-        uart_debug_sendline(").\n");
+        UartDebug_sendString("Transmit Acknowledge received but not waiting for acknowledge (");
+        UartDebug_printuint8(ctx->state);
+        UartDebug_sendline(").\n");
 #endif
     }
 }
@@ -671,13 +607,13 @@ void TUNNEL_Shim_TransmitAcknowledgeHandler(TunnelShimContext* ctx, TunnelShimPa
  * handles receiving the reception of a transmit complete packet from the host
  * transitions back to ready and cancels any timeout to retransmit the whole thing
  */
-void TUNNEL_Shim_TransmitCompleteHandler(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_transmitCompleteHandler(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen;
     bool doAck = false;
     if((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) == ctx->previousChannel) {
         doAck = true;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Transmit Complete by host but already complete.\n");
+        UartDebug_sendline("Transmit Complete by host but already complete.\n");
 #endif
     } else if((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) == ctx->currentChannel) {
         if((ctx->state == TUNNEL_SHIM_TRANSMIT_COMPLETE) || (ctx->state == TUNNEL_SHIM_TRANSMIT_ACK_WAIT)) {
@@ -690,14 +626,14 @@ void TUNNEL_Shim_TransmitCompleteHandler(TunnelShimContext* ctx, TunnelShimPacke
             ctx->timeoutTicksRemaining = 0; //clear our global timeout too
             ctx->ackWaitCountRemaining = 0;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-            uart_debug_sendline("Transmit Complete by host.\n");
+            UartDebug_sendline("Transmit Complete by host.\n");
 #endif
             doAck = true;
         } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendstring("Transmit Complete received but not in transmit complete or ack wait state (");
-            uart_debug_printuint8(ctx->state);
-            uart_debug_sendline(").\n");
+            UartDebug_sendString("Transmit Complete received but not in transmit complete or ack wait state (");
+            UartDebug_printuint8(ctx->state);
+            UartDebug_sendline(").\n");
 #endif
             doAck = false;
         }
@@ -706,7 +642,7 @@ void TUNNEL_Shim_TransmitCompleteHandler(TunnelShimContext* ctx, TunnelShimPacke
         doAck = false;
     }
     if(doAck) {
-        TUNNEL_Shim_SendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE_ACKNOWLEDGE, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+        TunnelShim_sendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE_ACKNOWLEDGE, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
     } else {
 
     }
@@ -716,34 +652,34 @@ void TUNNEL_Shim_TransmitCompleteHandler(TunnelShimContext* ctx, TunnelShimPacke
  * handles reception of an initiation packet containing a message or ping request
  * (i.e. anything that isn't able to be handled immediately)
  */
-void TUNNEL_Shim_ReceiveInitiationPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_receiveInitiationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen;
     uint8_t channel = (packet->channel & TUNNEL_SHIM_CHANNEL_MASK);
     if((ctx->currentChannel != TUNNEL_SHIM_CHANNEL_RESERVED) && (channel != ctx->currentChannel)) {
         //drop packet, not for the active channel
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, channel);
-    } else if (!(checkBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN))) {
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, channel);
+    } else if (!(Utilities_checkBitInMap(channel, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN))) {
         //not for us, drop
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Packet Received on unallocated channel. Dropped.\n");
+        UartDebug_sendline("Packet Received on unallocated channel. Dropped.\n");
 #endif
     } else {
-        uint16_t dataLength = TUNNEL_Shim_GetNumBytesFromPacket(packet);
-        uint8_t numPacketsRequired = TUNNEL_Shim_GetNumPacketsRequired(ctx, dataLength); //always at least 1
+        uint16_t dataLength = TunnelShim_getNumBytesFromPacket(packet);
+        uint8_t numPacketsRequired = TunnelShim_getNumPacketsRequired(ctx, dataLength); //always at least 1
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendstring("Initiation Packet Received. Expecting ");
-        uart_debug_printuint8(numPacketsRequired);
-        uart_debug_sendstring(" packets for ");
-        uart_debug_printuint32(dataLength);
-        uart_debug_sendline(" bytes of payload.\n");
+        UartDebug_sendString("Initiation Packet Received. Expecting ");
+        UartDebug_printuint8(numPacketsRequired);
+        UartDebug_sendString(" packets for ");
+        UartDebug_printuint32(dataLength);
+        UartDebug_sendline(" bytes of payload.\n");
 #endif
 
         if((numPacketsRequired > TUNNEL_SHIM_MAX_PACKET_COUNT) || (dataLength > ctx->dataBufferLen)) {
             //well crud. this should never happen
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-            uart_debug_sendline("Tunnel Shim Receive Impossible. Not enough buffer space.\n");
+            UartDebug_sendline("Tunnel Shim Receive Impossible. Not enough buffer space.\n");
 #endif
-            TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_OUT_OF_MEMORY, channel);
+            TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_OUT_OF_MEMORY, channel);
             return;
         }
 
@@ -759,21 +695,21 @@ void TUNNEL_Shim_ReceiveInitiationPacket(TunnelShimContext* ctx, TunnelShimPacke
             //i.e. everything is contained in the initiation packet
             memcpy(ctx->dataBuffer, packet->initiation.data, dataLength);
 
-            TUNNEL_Shim_SendImmediate(ctx, NULL, 0,  TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);  /*2017-08-24 changed this from an ACK, 2017-09-15 moved this out of the switch statement */
+            TunnelShim_sendImmediate(ctx, NULL, 0,  TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);  /*2017-08-24 changed this from an ACK, 2017-09-15 moved this out of the switch statement */
             switch(packet->initiation.command & (~TUNNEL_SHIM_ID_MASK)) {
                 case TUNNEL_SHIM_COMMAND_MESSAGE:
                     ctx->state = TUNNEL_SHIM_MESSAGE_WAITING;
                     ctx->dataBufferHead = dataLength;
-                    //TUNNEL_Shim_SendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);
+                    //TunnelShim_sendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);
                     break;
                 case TUNNEL_SHIM_COMMAND_PING:
                     ctx->state = TUNNEL_SHIM_PROCESSING;
-                    TUNNEL_Shim_DoSend(ctx, ctx->dataBuffer, dataLength, TUNNEL_SHIM_COMMAND_PING);
+                    TunnelShim_doSend(ctx, ctx->dataBuffer, dataLength, TUNNEL_SHIM_COMMAND_PING);
                     break;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
                 default:
                     //unknown command, should have been caught earlier
-                    uart_debug_sendline("Initiation handler received unexpected command.\n");
+                    UartDebug_sendline("Initiation handler received unexpected command.\n");
 #endif
             }
 
@@ -787,9 +723,9 @@ void TUNNEL_Shim_ReceiveInitiationPacket(TunnelShimContext* ctx, TunnelShimPacke
 
             memcpy(ctx->dataBuffer, packet->initiation.data, ctx->packetByteLen - INITIATION_PACKET_OVERHEAD);
             memset(ctx->packetsMap, 0, TUNNEL_SHIM_PACKET_BITMAP_LEN); //clear our packets map
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the initiation packet
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the initiation packet
 
-            TUNNEL_Shim_SendImmediate(ctx, &numPacketsRequired, 1, TUNNEL_SHIM_COMMAND_ACKNOWLEDGE, ctx->currentChannel);
+            TunnelShim_sendImmediate(ctx, &numPacketsRequired, 1, TUNNEL_SHIM_COMMAND_ACKNOWLEDGE, ctx->currentChannel);
         }
     }
 }
@@ -797,51 +733,51 @@ void TUNNEL_Shim_ReceiveInitiationPacket(TunnelShimContext* ctx, TunnelShimPacke
 /**
  * receives a continuation packet, must be message or ping (or something unforeseen when writing this comment)
  */
-void TUNNEL_Shim_ReceiveContinuationPacket(TunnelShimContext* ctx, TunnelShimPacket* packet, uint16_t packetLen) {
+void TunnelShim_receiveContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* packet, uint16_t packetLen) {
     (void) packetLen;
     if((packet->channel & TUNNEL_SHIM_CHANNEL_MASK) != ctx->currentChannel) {
         //drop packet, not for the active channel
-        TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+        TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_CHANNEL_BUSY, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
     } else {
         uint16_t dataPosition = ctx->packetByteLen - INITIATION_PACKET_OVERHEAD;
         dataPosition += (ctx->packetByteLen - CONTINUATION_PACKET_OVERHEAD) * (packet->continuation.sequence - 1);
         memcpy(ctx->dataBuffer + dataPosition, packet->continuation.data, ctx->packetByteLen - CONTINUATION_PACKET_OVERHEAD);
-        setBitInMap(packet->continuation.sequence, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the packet
+        Utilities_setBitInMap(packet->continuation.sequence, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN); //set that we have the packet
         //check if we have all the data
-        uint16_t highestReceivedPacketNum = getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        uint16_t highestReceivedPacketNum = Utilities_getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-        uart_debug_sendstring("Received packet ");
-        uart_debug_printuint32(highestReceivedPacketNum);
-        uart_debug_sendstring(" of ");
-        uart_debug_printuint32(ctx->numPacketsExpected);
-        uart_debug_sendstring(" expected.\n");
+        UartDebug_sendString("Received packet ");
+        UartDebug_printuint32(highestReceivedPacketNum);
+        UartDebug_sendString(" of ");
+        UartDebug_printuint32(ctx->numPacketsExpected);
+        UartDebug_sendString(" expected.\n");
 #endif
         if(highestReceivedPacketNum >= ctx->numPacketsExpected) {
             //inform the host we have all the packets
-            TUNNEL_Shim_SendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);
+            TunnelShim_sendImmediate(ctx, NULL, 0, TUNNEL_SHIM_COMMAND_COMPLETE, ctx->currentChannel);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-            uart_debug_sendline("All packets received.\n");
+            UartDebug_sendline("All packets received.\n");
 #endif
             //figure out what to do
             switch(ctx->commandInFlight) {
                 case TUNNEL_SHIM_COMMAND_MESSAGE:
-                    uart_debug_sendline("Message Waiting.\n");
+                    UartDebug_sendline("Message Waiting.\n");
                     ctx->state = TUNNEL_SHIM_MESSAGE_WAITING;
                     ctx->dataBufferHead = ctx->numBytesExpected;
                     break;
                 case TUNNEL_SHIM_COMMAND_PING:
-                    uart_debug_sendline("Ping processing.\n");
+                    UartDebug_sendline("Ping processing.\n");
                     ctx->state = TUNNEL_SHIM_PROCESSING;
-                    //TUNNEL_Shim_DoSend(ctx, ctx->dataBuffer, ctx->numBytesExpected, TUNNEL_SHIM_COMMAND_PING);
-                    TUNNEL_Shim_SendPing(ctx, ctx->dataBuffer, ctx->numBytesExpected);
+                    //TunnelShim_doSend(ctx, ctx->dataBuffer, ctx->numBytesExpected, TUNNEL_SHIM_COMMAND_PING);
+                    TunnelShim_sendPing(ctx, ctx->dataBuffer, ctx->numBytesExpected);
                     break;
                 default:
                     //this should have been caught earlier. re-catch it
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-                    uart_debug_sendline("Default case in ReceiveContinuationPacket. Unknown Command. Transaction Reset.\n");
+                    UartDebug_sendline("Default case in ReceiveContinuationPacket. Unknown Command. Transaction Reset.\n");
 #endif
-                    TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_UNKNOWN_COMMAND, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
-                    TUNNEL_Shim_ResetTransaction(ctx);
+                    TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_UNKNOWN_COMMAND, (packet->channel & TUNNEL_SHIM_CHANNEL_MASK));
+                    TunnelShim_resetTransaction(ctx);
             }
         }
     }
@@ -859,20 +795,20 @@ void TUNNEL_Shim_ReceiveContinuationPacket(TunnelShimContext* ctx, TunnelShimPac
  * @param dataLen in the length of the data
  * @return true if successful, false if not
  */
-/*bool TUNNEL_HID_Packetize(TunnelShimPacket* packets,  uint8_t* numPackets, uint8_t command, uint8_t* data, uint16_t dataLen) {
-    //uart_debug_sendline("Pre-Packetize Data Dump:\n");
-    //uart_debug_hexdump(data, dataLen);
+/*bool TUNNEL_HID_Packetize(TunnelShim_Packet* packets,  uint8_t* numPackets, uint8_t command, uint8_t* data, uint16_t dataLen) {
+    //UartDebug_sendline("Pre-Packetize Data Dump:\n");
+    //UartDebug_hexdump(data, dataLen);
     uint8_t numPacketsRequired = TUNNEL_HID_GetNumPacketsRequired(dataLen); //always at least 1
     if((numPacketsRequired > *numPackets) || (numPacketsRequired > (TUNNEL_SHIM_MAX_SEQUENCE_NUM + 1))) {
         //well crud
-        uart_debug_sendline("Tunnel Shim Packetize Failed. Not enough packet space.\n");
+        UartDebug_sendline("Tunnel Shim Packetize Failed. Not enough packet space.\n");
         return false;
     }
-    uart_debug_sendstring("Packetizing. Using ");
-    uart_debug_printuint8(numPacketsRequired);
-    uart_debug_sendstring(" packets for ");
-    uart_debug_printuint32(dataLen);
-    uart_debug_sendline(" bytes of payload.\n");
+    UartDebug_sendString("Packetizing. Using ");
+    UartDebug_printuint8(numPacketsRequired);
+    UartDebug_sendString(" packets for ");
+    UartDebug_printuint32(dataLen);
+    UartDebug_sendline(" bytes of payload.\n");
     uint8_t channel = TUNNEL_HID_CurrentChannel;
     packets[0].channel = channel;
     packets[0].initiation.command = TUNNEL_SHIM_ID_INITIATION | command;
@@ -900,7 +836,7 @@ void TUNNEL_Shim_ReceiveContinuationPacket(TunnelShimContext* ctx, TunnelShimPac
             //last packet
             uint16_t bytesRemaining = dataLen - dataPosition;
             if(bytesRemaining > dataLen) {
-                uart_debug_sendline("bytes remaining greater than datalen. trapped.\n");
+                UartDebug_sendline("bytes remaining greater than datalen. trapped.\n");
                 while(true);//trap
             }
             memcpy(packets[packetNum].continuation.data, data + dataPosition, bytesRemaining);
@@ -917,46 +853,46 @@ void TUNNEL_Shim_ReceiveContinuationPacket(TunnelShimContext* ctx, TunnelShimPac
         //dataPosition += TUNNEL_SHIM_REPORT_SIZE - CONTINUATION_PACKET_OVERHEAD;
     }
     *numPackets = numPacketsRequired; //copy this over
-    //uart_debug_sendline("Post-Packetize Packet Dump:\n");
-    //uart_debug_hexdump((uint8_t*) packets, (*numPackets) * TUNNEL_SHIM_REPORT_SIZE);
+    //UartDebug_sendline("Post-Packetize Packet Dump:\n");
+    //UartDebug_hexdump((uint8_t*) packets, (*numPackets) * TUNNEL_SHIM_REPORT_SIZE);
     return true;
 }*/
 
 /**
  * sends a ping response
  */
-uint16_t TUNNEL_Shim_SendPing(TunnelShimContext* ctx, uint8_t* response, uint16_t len) {
+uint16_t TunnelShim_sendPing(TunnelShim_Context* ctx, uint8_t* response, uint16_t len) {
     if(ctx->state != TUNNEL_SHIM_PROCESSING) {
         return 0;
     }
     //should already be in an interrupt context
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-    uart_debug_sendline("Tunnel Shim Ping Response Starting.\n");
+    UartDebug_sendline("Tunnel Shim Ping Response Starting.\n");
 #endif
-    return TUNNEL_Shim_DoSend(ctx, response, len, TUNNEL_SHIM_COMMAND_PING);
+    return TunnelShim_doSend(ctx, response, len, TUNNEL_SHIM_COMMAND_PING);
 }
 
 /**
  * send response
  * called to send a message response back to the host
  */
-uint16_t TUNNEL_Shim_SendResponse(TunnelShimContext* ctx, uint8_t* response, uint16_t len) {
+uint16_t TunnelShim_sendResponse(TunnelShim_Context* ctx, uint8_t* response, uint16_t len) {
     if(ctx == NULL) {
         return 0;
     }
     if(ctx->state != TUNNEL_SHIM_PROCESSING) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Tunnel Shim Send Response called but context not in processing state.\n");
+        UartDebug_sendline("Tunnel Shim Send Response called but context not in processing state.\n");
 #endif
         return 0;
     }
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-    uart_debug_sendline("Tunnel Shim Send Response called.\n");
+    UartDebug_sendline("Tunnel Shim Send Response called.\n");
 #endif
     if(ctx->funcs->disableInterrupt != NULL) {
         ctx->funcs->disableInterrupt();
     }
-    return TUNNEL_Shim_DoSend(ctx, response, len, TUNNEL_SHIM_COMMAND_MESSAGE);
+    return TunnelShim_doSend(ctx, response, len, TUNNEL_SHIM_COMMAND_MESSAGE);
     if(ctx->funcs->enableInterrupt != NULL) {
         ctx->funcs->enableInterrupt();
     }
@@ -965,7 +901,7 @@ uint16_t TUNNEL_Shim_SendResponse(TunnelShimContext* ctx, uint8_t* response, uin
 /**
  * internal function to prep the init packet in to the outgoing packet buffer
  */
-void TUNNEL_Shim_PrepInitPacket(TunnelShimContext* ctx, TunnelShimPacket* pkt) {
+void TunnelShim_prepInitPacket(TunnelShim_Context* ctx, TunnelShim_Packet* pkt) {
     pkt->channel = TUNNEL_SHIM_ID_INITIATION | ctx->currentChannel;
     pkt->initiation.command = ctx->commandInFlight;
     pkt->initiation.byteCountHigh = (ctx->outgoingByteCount & 0xFF00) >> 8;
@@ -989,25 +925,25 @@ void TUNNEL_Shim_PrepInitPacket(TunnelShimContext* ctx, TunnelShimPacket* pkt) {
  * @param command the command byte
  * @returns the number of bytes written and queued to the USB
  */
-uint16_t TUNNEL_Shim_DoSend(TunnelShimContext* ctx, uint8_t* response, uint16_t len, uint8_t command) {
+uint16_t TunnelShim_doSend(TunnelShim_Context* ctx, uint8_t* response, uint16_t len, uint8_t command) {
     //USBD_TUNNEL_HID_HandleTypeDef *hhid = &(((PAT_COMP_Data*) hUsbDeviceFS.pClassData)->tunnelHIDData);
     //USBD_TUNNEL_HID_HandleTypeDef     *hhid = (USBD_TUNNEL_HID_HandleTypeDef*)pdev->pClassData; //this is for standalone
 
     if(command != ctx->commandInFlight) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Tunnel shim response mismatch with command in flight.\n");
+        UartDebug_sendline("Tunnel shim response mismatch with command in flight.\n");
 #endif
     }
 
     memset(ctx->packetsMap, 0, TUNNEL_SHIM_PACKET_BITMAP_LEN); //wipe this out
 
     ctx->outgoingByteCount = len;
-    ctx->outgoingPacketCount = TUNNEL_Shim_GetNumPacketsRequired(ctx, len);
+    ctx->outgoingPacketCount = TunnelShim_getNumPacketsRequired(ctx, len);
     ctx->outgoingData = response;
 
     if(ctx->outgoingPacketCount > TUNNEL_SHIM_MAX_PACKET_COUNT) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Response too long to send.\n");
+        UartDebug_sendline("Response too long to send.\n");
 #endif
         return 0;
     }
@@ -1020,24 +956,24 @@ uint16_t TUNNEL_Shim_DoSend(TunnelShimContext* ctx, uint8_t* response, uint16_t 
         if(!(ctx->isTransmitting)) {
             ctx->isTransmitting = true;
             ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
-            TUNNEL_Shim_PrepInitPacket(ctx, ctx->packetBuffer);
+            TunnelShim_prepInitPacket(ctx, ctx->packetBuffer);
             ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
             ctx->timeoutActive = true;
             ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-            uart_debug_sendline("Tunnel Shim Send started from Do Send.\n");
+            UartDebug_sendline("Tunnel Shim Send started from Do Send.\n");
 #endif
         } else {//else an immediate transmit is in progress, will get picked up later
             ctx->state = TUNNEL_SHIM_TRANSMIT_INIT;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-            uart_debug_sendline("Tunnel Shim Send queued for later from Do Send.\n");
+            UartDebug_sendline("Tunnel Shim Send queued for later from Do Send.\n");
 #endif
         }
         return len;
     } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("Error in tunnel shim send. Send function NULL.\n");
+        UartDebug_sendline("Error in tunnel shim send. Send function NULL.\n");
 #endif
         return 0;
     }
@@ -1045,10 +981,10 @@ uint16_t TUNNEL_Shim_DoSend(TunnelShimContext* ctx, uint8_t* response, uint16_t 
 
 /** sends an error response as an immediate
  */
-uint16_t TUNNEL_Shim_SendImmediateError(TunnelShimContext* ctx, uint8_t errorCode, uint8_t channel) {
+uint16_t TunnelShim_sendImmediateError(TunnelShim_Context* ctx, uint8_t errorCode, uint8_t channel) {
     //static uint8_t code = 0;
     //code = errorCode;
-    return TUNNEL_Shim_SendImmediate(ctx, &errorCode, 1, TUNNEL_SHIM_COMMAND_ERROR, channel);
+    return TunnelShim_sendImmediate(ctx, &errorCode, 1, TUNNEL_SHIM_COMMAND_ERROR, channel);
 }
 
 /**
@@ -1056,21 +992,21 @@ uint16_t TUNNEL_Shim_SendImmediateError(TunnelShimContext* ctx, uint8_t errorCod
  * theoretically able to saturate the bus with requests
  * designed to be called from the packet receive routine as called by the USB Interrupt. might have concurrency issues if called from another context
  */
-uint16_t TUNNEL_Shim_SendImmediate(TunnelShimContext* ctx, uint8_t* immediateData, uint16_t len, uint8_t command, uint8_t channel) {
+uint16_t TunnelShim_sendImmediate(TunnelShim_Context* ctx, uint8_t* immediateData, uint16_t len, uint8_t command, uint8_t channel) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-    uart_debug_sendstring("Send Immediate: Command ");
-    uart_debug_hexprint8(command);
-    uart_debug_sendstring(" on Channel ");
-    uart_debug_hexprint8(channel);
-    uart_debug_newline();
+    UartDebug_sendString("Send Immediate: Command ");
+    UartDebug_hexprint8(command);
+    UartDebug_sendString(" on Channel ");
+    UartDebug_hexprint8(channel);
+    UartDebug_newline();
 #endif
     /*if(len > 0) {
-        uart_debug_hexdump(immediateData, len);
-        uart_debug_newline();
+        UartDebug_hexdump(immediateData, len);
+        UartDebug_newline();
     }*/
     if(len > (ctx->immediateBufferByteLen - INITIATION_PACKET_OVERHEAD)) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-        uart_debug_sendline("Immediate packet too long to send. Must fit in one packet.\n");
+        UartDebug_sendline("Immediate packet too long to send. Must fit in one packet.\n");
 #endif
         return 0;
     }
@@ -1099,7 +1035,7 @@ uint16_t TUNNEL_Shim_SendImmediate(TunnelShimContext* ctx, uint8_t* immediateDat
         //is transmitting, add our immediate in to the immediate buffer if we can
         if(ctx->immediatePacketBufferRemaining == 0) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendline("Immediate packet cannot be sent. Buffers full.\n");
+            UartDebug_sendline("Immediate packet cannot be sent. Buffers full.\n");
 #endif
             return 0;
         }
@@ -1129,7 +1065,7 @@ uint16_t TUNNEL_Shim_SendImmediate(TunnelShimContext* ctx, uint8_t* immediateDat
 
 //call this from the sysTick to handle the receive timeout
 //short and sweet. Call TUNNEL_HID_CheckTimeout() from the main task to actually handle the timeout
-void TUNNEL_Shim_DoTick(TunnelShimContext* ctx) {
+void TunnelShim_doTick(TunnelShim_Context* ctx) {
     if(ctx == NULL || ctx->state == TUNNEL_SHIM_UNCONFIGURED) {
         return;
     }
@@ -1150,7 +1086,7 @@ void TUNNEL_Shim_DoTick(TunnelShimContext* ctx) {
  * resets the internals of a specific transaction but none of the long-running state
  * any interrupts that may modify the struct should be disabled before calling this
  */
-void TUNNEL_Shim_ResetTransaction(TunnelShimContext *ctx) {
+void TunnelShim_resetTransaction(TunnelShim_Context *ctx) {
     ctx->commandInFlight = TUNNEL_SHIM_COMMAND_NONE;
     ctx->currentChannel = TUNNEL_SHIM_CHANNEL_RESERVED;
     ctx->previousChannel = TUNNEL_SHIM_CHANNEL_RESERVED;
@@ -1174,7 +1110,7 @@ void TUNNEL_Shim_ResetTransaction(TunnelShimContext *ctx) {
  * as the tunnel should be one of the main sources of long-running tasks and we don't have to worry about timeouts when running a long task from ourselves
  * this should be fine
  */
-void TUNNEL_Shim_CheckTimeout(TunnelShimContext* ctx) {
+void TunnelShim_checkTimeout(TunnelShim_Context* ctx) {
     if(ctx == NULL || ctx->state == TUNNEL_SHIM_UNCONFIGURED) {
         return;
     }
@@ -1192,37 +1128,37 @@ void TUNNEL_Shim_CheckTimeout(TunnelShimContext* ctx) {
 
             if(ctx->funcs->transmit != NULL) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                uart_debug_sendstring("Tunnel Shim Ack Wait Timeout retransmitting ");
+                UartDebug_sendString("Tunnel Shim Ack Wait Timeout retransmitting ");
 #endif
                 if(!(ctx->isTransmitting)) {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                    uart_debug_sendline("now.\n");
+                    UartDebug_sendline("now.\n");
 #endif
                     ctx->isTransmitting = true;
                     ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
-                    TUNNEL_Shim_PrepInitPacket(ctx, ctx->packetBuffer);
+                    TunnelShim_prepInitPacket(ctx, ctx->packetBuffer);
                     ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-                    setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+                    Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
                     ctx->timeoutActive = true;
                     ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
                     ctx->ackWaitCountRemaining = TUNNEL_SHIM_ACK_WAIT_MAX_COUNT;
                 } else { //else an immediate transmit is in progress, will get picked up later
                     ctx->state = TUNNEL_SHIM_TRANSMIT_INIT;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-                    uart_debug_sendline("delayed due to immediate.\n");
+                    UartDebug_sendline("delayed due to immediate.\n");
 #endif
                 }
             } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 0)
-                uart_debug_sendline("Error in tunnel shim init timeout callback. Send function NULL.\n");
+                UartDebug_sendline("Error in tunnel shim init timeout callback. Send function NULL.\n");
 #endif
             }
         } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendstring("Tunnel Shim Global Time Out. Resetting.\n");
+            UartDebug_sendString("Tunnel Shim Global Time Out. Resetting.\n");
 #endif
-            TUNNEL_Shim_SendImmediateError(ctx, TUNNEL_SHIM_ERROR_TIMED_OUT, ctx->currentChannel);
-            TUNNEL_Shim_ResetTransaction(ctx);
+            TunnelShim_sendImmediateError(ctx, TUNNEL_SHIM_ERROR_TIMED_OUT, ctx->currentChannel);
+            TunnelShim_resetTransaction(ctx);
         }
     }
     if(ctx->funcs->enableInterrupt != NULL) {
@@ -1233,7 +1169,7 @@ void TUNNEL_Shim_CheckTimeout(TunnelShimContext* ctx) {
  * resets the internal state
  * do not use while something is going on and expect it to work or have any consistency
  */
-void TUNNEL_Shim_Reset(TunnelShimContext* ctx) {
+void TunnelShim_reset(TunnelShim_Context* ctx) {
     if(ctx == NULL) {
         //can't do anything with a null context
         return;
@@ -1241,10 +1177,10 @@ void TUNNEL_Shim_Reset(TunnelShimContext* ctx) {
     if(ctx->funcs->disableInterrupt != NULL) {
         ctx->funcs->disableInterrupt();
     }
-    TUNNEL_Shim_ResetTransaction(ctx);
+    TunnelShim_resetTransaction(ctx);
     memset(ctx->channelsAllocatedMap, 0, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
-    setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
-    setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_RESERVED, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN); //"allocate" the reserved and broadcast channels
+    Utilities_setBitInMap(TUNNEL_SHIM_CHANNEL_BROADCAST, ctx->channelsAllocatedMap, TUNNEL_SHIM_CHANNEL_BITMAP_LEN);
 
     //run the disconnect callback if its set to do any other necessary cleanup
     if(ctx->funcs->disconnectCallback != NULL) {
@@ -1253,7 +1189,7 @@ void TUNNEL_Shim_Reset(TunnelShimContext* ctx) {
 
     ctx->state = TUNNEL_SHIM_READY;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-    uart_debug_sendline("Tunnel Shim Layer Reset.\n");
+    UartDebug_sendline("Tunnel Shim Layer Reset.\n");
 #endif
     if(ctx->funcs->enableInterrupt != NULL) {
         ctx->funcs->enableInterrupt();
@@ -1265,8 +1201,8 @@ void TUNNEL_Shim_Reset(TunnelShimContext* ctx) {
  * interrupts that affect the state of the context should be disabled before calling this function
  *
  */
-/* 2017-09-27: moved in to the single TUNNEL_Shim_CheckTimeout function
-void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShimContext* ctx) {
+/* 2017-09-27: moved in to the single TunnelShim_checkTimeout function
+void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShim_Context* ctx) {
     //start critical section, disable interrupt
 
     if(ctx != NULL && ctx->state != TUNNEL_SHIM_TRANSMIT_ACK_WAIT) {
@@ -1278,7 +1214,7 @@ void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShimContext* ctx) {
     }
 
     //packet *should* still be in the output buffer, but don't trust it!
-    TUNNEL_Shim_PrepInitPacket(ctx);
+    TunnelShim_prepInitPacket(ctx);
 
     ctx->state = TUNNEL_SHIM_TRANSMIT_INIT;
 
@@ -1286,12 +1222,12 @@ void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShimContext* ctx) {
         if(!(ctx->isTransmitting)) {
             ctx->isTransmitting = true;
             ctx->funcs->transmit((uint8_t*) ctx->packetBuffer, ctx->packetByteLen);
-            setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+            Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
             ctx->timeoutActive = true;
             ctx->timeoutTicksRemaining = TUNNEL_SHIM_SHORT_TIMEOUT;
         } //else an immediate transmit is in progress, will get picked up later
     } else {
-        uart_debug_sendline("Error in tunnel shim init timeout callback. Send function NULL.\n");
+        UartDebug_sendline("Error in tunnel shim init timeout callback. Send function NULL.\n");
     }
 
     if(ctx->funcs->enableInterrupt != NULL) {
@@ -1305,19 +1241,19 @@ void TUNNEL_Shim_TransmitInitTimeoutCallback(TunnelShimContext* ctx) {
 /*
  * internal helper to grab the next normal packet for transmit, if it exists
  */
-bool TUNNEL_Shim_GetNextContinuationPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoingPacket) {
+bool TunnelShim_getNextContinuationPacket(TunnelShim_Context* ctx, TunnelShim_Packet* outgoingPacket) {
     if((ctx == NULL) || (ctx->state != TUNNEL_SHIM_TRANSMIT)) {
         //*outgoingPacket = NULL;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-        uart_debug_sendline("GetNextContinuationPacket: Not in transmit state or null context.\n");
+        UartDebug_sendline("GetNextContinuationPacket: Not in transmit state or null context.\n");
 #endif
         return false;
     }
-    uint32_t nextPacketNum32 = getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+    uint32_t nextPacketNum32 = Utilities_getLowestUnsetBitInMap(ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-    uart_debug_sendstring("GetNextContinuationPacket looking at packet: ");
-    uart_debug_printuint32(nextPacketNum32);
-    uart_debug_newline();
+    UartDebug_sendString("GetNextContinuationPacket looking at packet: ");
+    UartDebug_printuint32(nextPacketNum32);
+    UartDebug_newline();
 #endif
     if(nextPacketNum32 < ctx->outgoingPacketCount) {
         uint8_t nextPacketNum = nextPacketNum32 & 0xFF;
@@ -1337,22 +1273,22 @@ bool TUNNEL_Shim_GetNextContinuationPacket(TunnelShimContext* ctx, TunnelShimPac
         } else {
             //empty packet. should not be here as this should be picked up first.
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 1)
-            uart_debug_sendline("Attempted to send empty packet in tunnel shim layer.\n");
+            UartDebug_sendline("Attempted to send empty packet in tunnel shim layer.\n");
 #endif
             ctx->state = TUNNEL_SHIM_TRANSMIT_COMPLETE;
             //*outgoingPacket = NULL;
             return false;
         }
-        setBitInMap(nextPacketNum, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        Utilities_setBitInMap(nextPacketNum, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-        uart_debug_sendstring("GetNextContinuationPacket: Sending Packet #");
-        uart_debug_printuint32(nextPacketNum32);
-        uart_debug_newline();
+        UartDebug_sendString("GetNextContinuationPacket: Sending Packet #");
+        UartDebug_printuint32(nextPacketNum32);
+        UartDebug_newline();
 #endif
         return true;
     } else {
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-        uart_debug_sendline("GetNextContinuationPacket: Transmit Complete.\n");
+        UartDebug_sendline("GetNextContinuationPacket: Transmit Complete.\n");
 #endif
         ctx->state = TUNNEL_SHIM_TRANSMIT_COMPLETE;
         //*outgoingPacket = NULL;
@@ -1365,16 +1301,16 @@ bool TUNNEL_Shim_GetNextContinuationPacket(TunnelShimContext* ctx, TunnelShimPac
  * get the next packet for transmit. call this from the transmit callback to grab the next packet
  *
  * @param ctx the context to get the packet from, must not be null
- * @param outgoingPacket (out parameter) pointer to a TunnelShimPacket, contents will be updated to the next packet to send if true is returned
+ * @param outgoingPacket (out parameter) pointer to a TunnelShim_Packet, contents will be updated to the next packet to send if true is returned
  * @return true if outgoingPacket was updated, false otherwise
  */
-bool TUNNEL_Shim_GetNextPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoingPacket) {
+bool TunnelShim_getNextPacket(TunnelShim_Context* ctx, TunnelShim_Packet* outgoingPacket) {
     if(ctx == NULL) {
         //*outgoingPacket = NULL;
         return false;
     }
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-    uart_debug_sendline("Tunnel Shim GetNextPacket Called.\n");
+    UartDebug_sendline("Tunnel Shim GetNextPacket Called.\n");
 #endif
     bool packetReady = false;
     //if(ctx->immState != TUNNEL_SHIM_IMM_IDLE) {
@@ -1399,8 +1335,8 @@ bool TUNNEL_Shim_GetNextPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoin
         //*outgoingPacket = ctx->packetBuffer;
         packetReady = true;
     } else if (ctx->state == TUNNEL_SHIM_TRANSMIT_INIT) {
-        TUNNEL_Shim_PrepInitPacket(ctx, outgoingPacket);
-        setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
+        TunnelShim_prepInitPacket(ctx, outgoingPacket);
+        Utilities_setBitInMap(0, ctx->packetsMap, TUNNEL_SHIM_PACKET_BITMAP_LEN);
         //*outgoingPacket = ctx->packetBuffer;
         ctx->state = TUNNEL_SHIM_TRANSMIT_ACK_WAIT;
         ctx->timeoutActive = true;
@@ -1408,16 +1344,16 @@ bool TUNNEL_Shim_GetNextPacket(TunnelShimContext* ctx, TunnelShimPacket* outgoin
         ctx->ackWaitCountRemaining = TUNNEL_SHIM_ACK_WAIT_MAX_COUNT;
         packetReady = true;
     } else if (ctx->state == TUNNEL_SHIM_TRANSMIT ) {
-        packetReady = TUNNEL_Shim_GetNextContinuationPacket(ctx, outgoingPacket);
+        packetReady = TunnelShim_getNextContinuationPacket(ctx, outgoingPacket);
     } else {
         //*outgoingPacket = NULL;
         packetReady = false;
     }
     ctx->isTransmitting = packetReady;
 #if defined DEBUG && (TUNNEL_SHIM_VERBOSE > 2)
-    uart_debug_sendstring("Tunnel Shim GetNextPacket Finished. Sending: ");
-    uart_debug_printBool(packetReady);
-    uart_debug_newline();
+    UartDebug_sendString("Tunnel Shim GetNextPacket Finished. Sending: ");
+    UartDebug_printBool(packetReady);
+    UartDebug_newline();
 #endif
     return packetReady;
 

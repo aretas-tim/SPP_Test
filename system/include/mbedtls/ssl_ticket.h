@@ -122,7 +122,7 @@ mbedtls_ssl_ticket_write_t mbedtls_ssl_ticket_write;
 mbedtls_ssl_ticket_parse_t mbedtls_ssl_ticket_parse;
 
 /**
- * \brief           Free a context's content and zeroize it.
+ * \brief           Free a context's content and Utilities_zeroize it.
  *
  * \param ctx       Context to be cleaned up
  */

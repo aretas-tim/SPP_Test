@@ -73,11 +73,11 @@ extern USBD_U2F_HID_ItfTypeDef  USBD_U2F_HID_Callbacks;
 //extern USBD_TUNNEL_HID_ItfTypeDef USBD_Tunnel_HID_template_fops;
 
 
-void U2F_HID_SecondTick(void);
-bool U2F_HID_IsMessageWaiting(void);
-uint16_t U2F_HID_GetMessageLength(void);
-uint16_t U2F_HID_ReadMessage(uint8_t* msg, uint16_t maxMsgLen);
-uint16_t U2F_HID_SendResponse(uint8_t response, uint8_t* data, uint16_t dataLen);
+void U2fHid_secondTick(void);
+bool U2fHid_isMessageWaiting(void);
+uint16_t U2fHid_getMessageLength(void);
+uint16_t U2fHid_readMessage(uint8_t* msg, uint16_t maxMsgLen);
+uint16_t U2fHid_sendResponse(uint8_t response, uint8_t* data, uint16_t dataLen);
 
 #ifdef __cplusplus
 }

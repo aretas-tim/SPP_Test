@@ -8,14 +8,14 @@
 #ifndef TUNNEL_H_
 #define TUNNEL_H_
 
-#include "tpm_utils.h"
-//#include "tpm_nonce.h" /*getRandomBuff*/
+#include "utilities.h"
+//#include "tpm_nonce.h" /*Utilities_getRandomBuff*/
 #include "md.h"
 #include "sha256.h"
 #include "sha512.h"
 #include "aes.h"
 #include "pkcs5.h" /* pbkdf2*/
-//#include "tpm_authsession.h" /* TPM_AES_CTR_Crypt*/
+//#include "tpm_authsession.h" /* Utilities_tpmAesCtrCrypt*/
 #include "authdata_store.h"
 //#include "tpm_structures.h"
 //#include "tpm_i2c.h"
@@ -127,30 +127,30 @@
 } CommandBuffer;*/
 
 
-void TUNNEL_BufferInit(TUNNEL_BUFFER_CTX*);
-TUNNEL_BUFFER_CTX* TUNNEL_GetBufferPtr();
+void TUNNEL_BufferInit(TunnelStructures_TunnelBufferCtx*);
+TunnelStructures_TunnelBufferCtx* TUNNEL_GetBufferPtr();
 
-size_t TUNNEL_BufferExtend(TUNNEL_BUFFER_CTX*, uint8_t*, size_t);
-size_t TUNNEL_BufferExtend8(TUNNEL_BUFFER_CTX*, uint8_t);
-size_t TUNNEL_BufferExtend16(TUNNEL_BUFFER_CTX*, uint16_t);
-size_t TUNNEL_BufferExtend32(TUNNEL_BUFFER_CTX*, uint32_t);
-void TUNNEL_BufferExtendDigestOnly(TUNNEL_BUFFER_CTX* buff, uint8_t* in, size_t len);
-void TUNNEL_BufferExtendDigestOnly32(TUNNEL_BUFFER_CTX* buff, uint32_t in);
+size_t TUNNEL_BufferExtend(TunnelStructures_TunnelBufferCtx*, uint8_t*, size_t);
+size_t TUNNEL_BufferExtend8(TunnelStructures_TunnelBufferCtx*, uint8_t);
+size_t TUNNEL_BufferExtend16(TunnelStructures_TunnelBufferCtx*, uint16_t);
+size_t TUNNEL_BufferExtend32(TunnelStructures_TunnelBufferCtx*, uint32_t);
+void TUNNEL_BufferExtendDigestOnly(TunnelStructures_TunnelBufferCtx* buff, uint8_t* in, size_t len);
+void TUNNEL_BufferExtendDigestOnly32(TunnelStructures_TunnelBufferCtx* buff, uint32_t in);
 
-uint8_t TUNNEL_BufferExtract8(TUNNEL_BUFFER_CTX* buff);
-uint16_t TUNNEL_BufferExtract16(TUNNEL_BUFFER_CTX* buff);
-uint32_t TUNNEL_BufferExtract32(TUNNEL_BUFFER_CTX* buff);
-size_t TUNNEL_BufferExtractBuffer(TUNNEL_BUFFER_CTX* buff, uint8_t* out, size_t len);
-int32_t TUNNEL_BufferExtractStructure(TUNNEL_BUFFER_CTX* buff, int32_t (*extractFunc)(void*, uint8_t*), void* structure);
-size_t TUNNEL_BufferLengthField(TUNNEL_BUFFER_CTX*);
-void TUNNEL_BufferDigest(TUNNEL_BUFFER_CTX*);
+uint8_t TUNNEL_BufferExtract8(TunnelStructures_TunnelBufferCtx* buff);
+uint16_t TUNNEL_BufferExtract16(TunnelStructures_TunnelBufferCtx* buff);
+uint32_t TUNNEL_BufferExtract32(TunnelStructures_TunnelBufferCtx* buff);
+size_t TUNNEL_BufferExtractBuffer(TunnelStructures_TunnelBufferCtx* buff, uint8_t* out, size_t len);
+int32_t TUNNEL_BufferExtractStructure(TunnelStructures_TunnelBufferCtx* buff, int32_t (*extractFunc)(void*, uint8_t*), void* structure);
+size_t TUNNEL_BufferLengthField(TunnelStructures_TunnelBufferCtx*);
+void TUNNEL_BufferDigest(TunnelStructures_TunnelBufferCtx*);
 
-int32_t TUNNEL_BufferMakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff);
-int32_t TUNNEL_BufferHandleAuthSection(TUNNEL_BUFFER_CTX*, uint8_t* authSection, TransportTunnel*);
-size_t TUNNEL_BufferCalcLength(TUNNEL_BUFFER_CTX*);
-size_t TUNNEL_BufferGet(TUNNEL_BUFFER_CTX*, uint8_t*, size_t);
-void TUNNEL_BufferFree(TUNNEL_BUFFER_CTX*);
-void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_t resposneCode, uint32_t commandCode, uint8_t authorized);
+int32_t TUNNEL_BufferMakeAuthSection(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff);
+int32_t TUNNEL_BufferHandleAuthSection(TunnelStructures_TunnelBufferCtx*, uint8_t* authSection, TunnelStructures_TransportTunnel*);
+size_t TUNNEL_BufferCalcLength(TunnelStructures_TunnelBufferCtx*);
+size_t TUNNEL_BufferGet(TunnelStructures_TunnelBufferCtx*, uint8_t*, size_t);
+void TUNNEL_BufferFree(TunnelStructures_TunnelBufferCtx*);
+void TUNNEL_BufferSend(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff, uint32_t resposneCode, uint32_t commandCode, uint8_t authorized);
 
 
 
@@ -159,48 +159,48 @@ void TUNNEL_BufferSend(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff, uint32_
 void freeCommandBuffer(CommandBuffer* buffer);*/
 
 
-void TUNNEL_Init(TransportTunnel* tunnel, uint16_t (*tunnelSendFunc)(uint8_t* data, uint16_t len));
-void TUNNEL_End(TransportTunnel* tunnel);
-void TUNNEL_Dump(TransportTunnel* tunnel);
-int32_t TUNNEL_SendShortClear(TransportTunnel* tunnel, uint32_t responseCode);
-int32_t TUNNEL_SendShortEnc(TransportTunnel* tunnel, uint32_t commandCode, uint32_t responseCode);
+void TUNNEL_Init(TunnelStructures_TransportTunnel* tunnel, uint16_t (*tunnelSendFunc)(uint8_t* data, uint16_t len));
+void TUNNEL_End(TunnelStructures_TransportTunnel* tunnel);
+void TUNNEL_Dump(TunnelStructures_TransportTunnel* tunnel);
+int32_t TUNNEL_SendShortClear(TunnelStructures_TransportTunnel* tunnel, uint32_t responseCode);
+int32_t TUNNEL_SendShortEnc(TunnelStructures_TransportTunnel* tunnel, uint32_t commandCode, uint32_t responseCode);
 
-int32_t TUNNEL_InitHandler(TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* otc, size_t otcLen);
+int32_t TUNNEL_InitHandler(TunnelStructures_TransportTunnel* tunnel, uint8_t* nonceIn, uint8_t* otc, size_t otcLen);
 
-int32_t TUNNEL_VerifyAuthCommand(TransportTunnel* tunnel, uint8_t* authSection, uint8_t* digest);
-int32_t TUNNEL_MakeAuthSection(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* buff);
+int32_t TUNNEL_VerifyAuthCommand(TunnelStructures_TransportTunnel* tunnel, uint8_t* authSection, uint8_t* digest);
+int32_t TUNNEL_MakeAuthSection(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* buff);
 
-size_t TUNNEL_AES_CTR_CryptInPlace(TransportTunnel* tunnel, uint8_t* buffer, size_t len);
-void TUNNEL_Test(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-int32_t TUNNEL_ORD_InitHandler(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, volatile uint8_t* codeEntryCompleteFlag, size_t (*getOTCFunc)(unsigned char*, size_t), uint32_t timeout);
-uint32_t TUNNEL_GetOTCSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
+size_t TUNNEL_AES_CTR_CryptInPlace(TunnelStructures_TransportTunnel* tunnel, uint8_t* buffer, size_t len);
+void TUNNEL_Test(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+int32_t TUNNEL_ORD_InitHandler(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, volatile uint8_t* codeEntryCompleteFlag, size_t (*getOTCFunc)(unsigned char*, size_t), uint32_t timeout);
+uint32_t TUNNEL_GetOTCSetup(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
 
-uint32_t TUNNEL_TPM_GetPubKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* oiap*/);
-uint32_t TUNNEL_TPM_Seal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData);
-uint32_t TUNNEL_TPM_Unseal(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* keyAuthSession, AuthSession* dataAuthSession*/);
-uint32_t TUNNEL_TPM_CreateWrapKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData);
-uint32_t TUNNEL_TPM_LoadKey(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c/*, AuthSession* as*/, uint8_t* keyAuthData);
+uint32_t TUNNEL_TPM_GetPubKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* oiap*/);
+uint32_t TUNNEL_TPM_Seal(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData);
+uint32_t TUNNEL_TPM_Unseal(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData/*, AuthSession* keyAuthSession, AuthSession* dataAuthSession*/);
+uint32_t TUNNEL_TPM_CreateWrapKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, uint8_t* keyAuthData);
+uint32_t TUNNEL_TPM_LoadKey(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c/*, AuthSession* as*/, uint8_t* keyAuthData);
 
-uint32_t TUNNEL_TPM_NV_DefineSpace(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore);
-uint32_t TUNNEL_TPM_NV_Read(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
-uint32_t TUNNEL_TPM_NV_Write(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_NV_DefineSpace(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore);
+uint32_t TUNNEL_TPM_NV_Read(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_NV_Write(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/);
 
-uint32_t TUNNEL_TPM_GetCapability(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c);
-uint32_t TUNNEL_TPM_GetCapabilityOwner(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c, AuthDataStore* authDataStore/*, AuthSession* as*/);
+uint32_t TUNNEL_TPM_GetCapability(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c);
+uint32_t TUNNEL_TPM_GetCapabilityOwner(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c, AuthData_AuthDataStore* authDataStore/*, AuthSession* as*/);
 
-uint32_t TUNNEL_RTC_Set(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc);
-uint32_t TUNNEL_RTC_Get(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, RTC_HandleTypeDef* hrtc);
+uint32_t TUNNEL_RTC_Set(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, RTC_HandleTypeDef* hrtc);
+uint32_t TUNNEL_RTC_Get(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, RTC_HandleTypeDef* hrtc);
 
-uint32_t TUNNEL_Setup_SRK(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff/*, TPM_KEY12* srk*/);
-uint32_t TUNNEL_TPM_DAMSetup(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff, I2C_HandleTypeDef* hi2c);
+uint32_t TUNNEL_Setup_SRK(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff/*, TPM_KEY12* srk*/);
+uint32_t TUNNEL_TPM_DAMSetup(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff, I2C_HandleTypeDef* hi2c);
 
-uint32_t TUNNEL_GetVoltages(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
+uint32_t TUNNEL_GetVoltages(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
 
-uint32_t TUNNEL_SetupInitial(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-uint32_t TUNNEL_SetupAttackMitigation(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-uint32_t TUNNEL_SetupTunnel(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-uint32_t TUNNEL_SetupPINChange(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-uint32_t TUNNEL_SetupRelock(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
-uint32_t TUNNEL_OwnerGetConfiguration(TransportTunnel* tunnel, TUNNEL_BUFFER_CTX* cbuff);
+uint32_t TUNNEL_SetupInitial(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+uint32_t TUNNEL_SetupAttackMitigation(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+uint32_t TUNNEL_SetupTunnel(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+uint32_t TUNNEL_SetupPINChange(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+uint32_t TUNNEL_SetupRelock(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
+uint32_t TUNNEL_OwnerGetConfiguration(TunnelStructures_TransportTunnel* tunnel, TunnelStructures_TunnelBufferCtx* cbuff);
 
 #endif /* TUNNEL_H_ */

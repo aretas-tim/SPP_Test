@@ -7,49 +7,52 @@
 
 #include "authdata_store.h"
 
+static void AuthData_initAuthDataStore(AuthData_AuthDataStore*);
+static void AuthData_initKeyStore(AuthData_KeyStore*);
+static void AuthData_initSaltedKeyStore(AuthData_SaltedKeyStore* saltedKeyStore);
 
-void initAuthDataStore(AuthDataStore* authData) {
+void AuthData_initAuthDataStore(AuthData_AuthDataStore* authData) {
     memset(authData->ownerAuthData, 0, 20);
     memset(authData->srkAuthData, 0, 20); //@TODO de-magic this.. again.. siiigh
     authData->valid = 0;
 }
 
-void initKeyStore(KeyStore* keyStore) {
+void AuthData_initKeyStore(AuthData_KeyStore* keyStore) {
     keyStore->valid = 0;
     memset(keyStore->key, 0, STORAGE_KEY_LEN);
 }
 
-void initSaltedKeyStore(SaltedKeyStore* saltedKeyStore) {
-    saltedKeyStore->valid = 0;
-    memset(saltedKeyStore->key, 0, TRANSPORT_KEY_LEN);
-    memset(saltedKeyStore->salt, 0, TRANSPORT_KEY_LEN);
+void AuthData_initSaltedKeyStore(AuthData_SaltedKeyStore* saltedAuthData_tdKeyStore) {
+    saltedAuthData_tdKeyStore->valid = 0;
+    memset(saltedAuthData_tdKeyStore->key, 0, TRANSPORT_KEY_LEN);
+    memset(saltedAuthData_tdKeyStore->salt, 0, TRANSPORT_KEY_LEN);
 }
 
 /* initializes everything to zero, including the valid bits*/
-void initCombinedStore(CombinedStore* combinedStore) {
-    initAuthDataStore(&(combinedStore->authData));
-    initKeyStore(&(combinedStore->storageKey));
-    initSaltedKeyStore(&(combinedStore->transportKey));
+void AuthData_initCombinedStore(AuthData_CombinedStore* combinedStore) {
+    AuthData_initAuthDataStore(&(combinedStore->authData));
+    AuthData_initKeyStore(&(combinedStore->storageKey));
+    AuthData_initSaltedKeyStore(&(combinedStore->transportKey));
 }
 
 
-void validateCombinedStore(CombinedStore* combinedStore) {
+void AuthData_validateCombinedStore(AuthData_CombinedStore* combinedStore) {
     combinedStore->authData.valid = 1;
     combinedStore->storageKey.valid = 1;
     combinedStore->transportKey.valid = 1;
 }
 
-void freeCombinedStore(CombinedStore* combinedStore) {
-    initCombinedStore(combinedStore);
+void AuthData_freeCombinedStore(AuthData_CombinedStore* combinedStore) {
+    AuthData_initCombinedStore(combinedStore);
 }
 
-void dumpSaltedKeyStore(SaltedKeyStore* saltedKeyStore) {
-    uart_debug_sendline("Salted Key Store Dump:\n");
-    uart_debug_sendline("Key:\n");
-    uart_debug_hexdump(saltedKeyStore->key, TRANSPORT_KEY_LEN);
-    uart_debug_sendline("Salt:\n");
-    uart_debug_hexdump(saltedKeyStore->salt, TRANSPORT_KEY_LEN);
-    uart_debug_sendstring("Valid: ");
-    uart_debug_printBool(saltedKeyStore->valid);
-    uart_debug_newline();
+void AuthData_dumpSaltedKeyStore(AuthData_SaltedKeyStore* saltedAuthData_tdKeyStore) {
+    UartDebug_sendline("Salted Key Store Dump:\n");
+    UartDebug_sendline("Key:\n");
+    UartDebug_hexdump(saltedAuthData_tdKeyStore->key, TRANSPORT_KEY_LEN);
+    UartDebug_sendline("Salt:\n");
+    UartDebug_hexdump(saltedAuthData_tdKeyStore->salt, TRANSPORT_KEY_LEN);
+    UartDebug_sendString("Valid: ");
+    UartDebug_printBool(saltedAuthData_tdKeyStore->valid);
+    UartDebug_newline();
 }

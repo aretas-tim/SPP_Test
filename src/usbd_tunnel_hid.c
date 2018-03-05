@@ -372,8 +372,8 @@ uint8_t USBD_TUNNEL_HID_SendReport     (USBD_HandleTypeDef  *pdev,
     if(hhid->transmitState == HID_IDLE)
     {
       hhid->transmitState = HID_BUSY;
-      uart_debug_sendline("USB HID Sent:\n");
-      uart_debug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
+      UartDebug_sendline("USB HID Sent:\n");
+      UartDebug_hexdump(report, TUNNEL_HID_EPIN_SIZE);
       USBD_LL_Transmit (pdev, TUNNEL_HID_EPIN_ADDR, report, len);
       return USBD_OK;
     } else {
@@ -408,9 +408,9 @@ static uint8_t  *USBD_TUNNEL_HID_GetCfgDesc (uint16_t *length)
 static uint8_t  USBD_TUNNEL_HID_DataIn (USBD_HandleTypeDef *pdev,
                               uint8_t epnum)
 {
-    /*uart_debug_addToBuffer("DataIn EP Num: ", 15);
-    uart_debug_printuint8(epnum);
-    uart_debug_newline();*/
+    /*UartDebug_addToBuffer("DataIn EP Num: ", 15);
+    UartDebug_printuint8(epnum);
+    UartDebug_newline();*/
 
     USBD_TUNNEL_HID_HandleTypeDef     *hTunnelHID = (USBD_TUNNEL_HID_HandleTypeDef*)pdev->pClassData;
 
@@ -443,7 +443,7 @@ static uint8_t  USBD_TUNNEL_HID_DataIn (USBD_HandleTypeDef *pdev,
                             //nothing to do
                             break;
                         case HID_BUSY:
-                            //uart_debug_sendline("In HID_BUSY send normal packet\n");
+                            //UartDebug_sendline("In HID_BUSY send normal packet\n");
                             if(hTunnelHID->nextTransmitPacketNum < hTunnelHID->transmitPacketBufferLen) {
                                 //something to send
                                 USBD_LL_Transmit(pdev, TUNNEL_HID_EPIN_ADDR, (uint8_t*) &(hTunnelHID->transmitPacketBuffer[hTunnelHID->nextTransmitPacketNum]), TUNNEL_HID_EPIN_SIZE);

@@ -56,8 +56,8 @@
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 extern UART_HandleTypeDef huart_debug;
-extern WorkStatus statusWork;
-extern LockStatus statusLock;
+extern Status_WorkStatus statusWork;
+extern Status_LockStatus statusLock;
 //extern uint32_t secondTicks;
 extern uint8_t secondTicksUpdated;
 extern I2C_HandleTypeDef hi2c;
@@ -262,14 +262,14 @@ void TIM7_IRQHandler(void) {
     TIM7->SR = 0x0; //clear the interrupt flag
     LED_HeartbeatUpdate(statusLock, statusWork);
     //GPIOC->BRR = GPIO_PIN_3;
-    //uart_debug_putchar('.');
+    //UartDebug_putchar('.');
 
 }
 
 void TIM1_TRG_COM_TIM17_IRQHandler(void) {
-    //uart_debug_printuint32(TIM17->SR);
-    //uart_debug_newline();
-    //uart_debug_putchar('.');
+    //UartDebug_printuint32(TIM17->SR);
+    //UartDebug_newline();
+    //UartDebug_putchar('.');
     if(TIM17->SR) {
         TIM17->SR = 0x0; //clear the interrupt flag
         //secondTicks++;
@@ -316,14 +316,14 @@ void UART5_IRQHandler(void) {
 void DMA2_Channel2_IRQHandler(void) {
 
     HAL_DMA_IRQHandler(&hdma_icc_tx);
-    //uart_debug_sendline("DMA 2 Ch 2 Interrupt!\n");
+    //UartDebug_sendline("DMA 2 Ch 2 Interrupt!\n");
 }
 
 void DMA2_Channel1_IRQHandler(void) {
     /*if(__HAL_DMA_GET_FLAG(&hdma_icc_rx, __HAL_DMA_GET_HT_FLAG_INDEX(&hdma_icc_rx)) != RESET) {
-        uart_debug_sendline("DMA 2 Ch 1 Half-Complete Interrupt!\n");
+        UartDebug_sendline("DMA 2 Ch 1 Half-Complete Interrupt!\n");
     } else {
-        uart_debug_sendline("DMA 2 Ch 1 Interrupt!\n");
+        UartDebug_sendline("DMA 2 Ch 1 Interrupt!\n");
     }*/
 
     HAL_DMA_IRQHandler(&hdma_icc_rx);
@@ -333,16 +333,16 @@ void DMA2_Channel1_IRQHandler(void) {
 void EXTI4_IRQHandler(void) {
     if(EXTI->PR1 & GPIO_PIN_4) {
         __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_4);
-        ICC_DeselectedCallbackHandler();
-        uart_debug_sendline("NSS rising edge interrupt.\n");
+        Icc_deselectedCallbackHandler();
+        UartDebug_sendline("NSS rising edge interrupt.\n");
     }
 }
 
 void EXTI15_10_IRQHandler(void) {
     if(EXTI->PR1 & GPIO_PIN_15) {
         __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_15);
-        ICC_DeselectedCallbackHandler();
-        uart_debug_sendline("NSS rising edge interrupt.\n");
+        Icc_deselectedCallbackHandler();
+        UartDebug_sendline("NSS rising edge interrupt.\n");
     }
 }
 
