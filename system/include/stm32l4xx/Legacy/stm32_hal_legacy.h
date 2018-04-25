@@ -35,7 +35,7 @@
   *
   ******************************************************************************
   */
-
+#include "stm32l4xx_hal_rcc.h"
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32_HAL_LEGACY
 #define __STM32_HAL_LEGACY

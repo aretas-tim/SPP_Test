@@ -50,6 +50,7 @@
   * @{
   */
 
+
 /** @addtogroup RCC
   * @{
   */
@@ -3158,6 +3159,7 @@ typedef struct
 
 /* Include RCC HAL Extended module */
 #include "stm32l4xx_hal_rcc_ex.h"
+
 
 /* Exported functions --------------------------------------------------------*/
 /** @addtogroup RCC_Exported_Functions
