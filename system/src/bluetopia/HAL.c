@@ -170,11 +170,9 @@ void CONSOLE_UART_IRQ_HANDLER(void)
 /* The following function configures the hardware as required for the   */
 /* sample applications.                                                 */
 //void HAL_ConfigureHardware(void)
-void HAL_ConfigureHardware(UART_HandleTypeDef* huart_debug, UART_HandleTypeDef* huart_console)
+void HAL_ConfigureHardware(UART_HandleTypeDef* huart_console)
 {
-   //added bt tim.
-   // initializes the UART5 and the gpio for debug statements
-   Init_debugUartInit(huart_debug );
+
 
    BTPS_MemInitialize(&HAL_UartContext, 0, sizeof(HAL_UartContext_t));
 
@@ -493,19 +491,20 @@ void USART_SendData(USART_TypeDef* USARTx, uint16_t Data)
 void Init_debugUartInit(UART_HandleTypeDef* huart_debug ) {
 	GPIO_InitTypeDef Init_gpioInitStruct;
 
-	//__USART1_CLK_ENABLE;
+	__GPIOA_CLK_ENABLE();
+	__USART2_CLK_ENABLE();
 
-    huart_debug->Instance = USART1;
+    huart_debug->Instance = USART2;
 
-    Init_gpioInitStruct.Pin = GPIO_PIN_1;
+    Init_gpioInitStruct.Pin = GPIO_PIN_2;
     Init_gpioInitStruct.Mode = GPIO_MODE_AF_PP;
     Init_gpioInitStruct.Pull = GPIO_PULLUP;
     Init_gpioInitStruct.Speed = GPIO_SPEED_LOW;
-    Init_gpioInitStruct.Alternate = GPIO_AF7_USART1;
-    HAL_GPIO_Init(GPIOC, &Init_gpioInitStruct);
+    Init_gpioInitStruct.Alternate = GPIO_AF7_USART2;
+    HAL_GPIO_Init(GPIOA, &Init_gpioInitStruct);
 
-    HAL_NVIC_SetPriority(UART5_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(UART5_IRQn);
+    HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(USART2_IRQn);
 
     huart_debug->Init.BaudRate = 230400;
     huart_debug->Init.WordLength = UART_WORDLENGTH_8B;
@@ -519,3 +518,4 @@ void Init_debugUartInit(UART_HandleTypeDef* huart_debug ) {
     HAL_UART_Init(huart_debug);
 
 }
+

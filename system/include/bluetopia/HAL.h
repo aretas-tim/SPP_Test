@@ -32,7 +32,7 @@ typedef enum
 
    /* The following function is used to place the hardware into a known */
    /* state.                                                            */
-void HAL_ConfigureHardware(UART_HandleTypeDef* huart_debug, UART_HandleTypeDef* huart_console);
+void HAL_ConfigureHardware(UART_HandleTypeDef* huart_console);
 
    /* The following function is used to illuminate an LED.  The number  */
    /* of LEDs on a board is board specific.  If the LED_ID provided does*/

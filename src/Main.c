@@ -20,6 +20,7 @@
 #include "Main.h"                /* Main application header.                  */
 #include "HAL.h"                 /* Function for Hardware Abstraction.        */
 #include "HALCFG.h"              /* HAL Configuration Constants.              */
+#include "uart_debug.h"
 
 
 #define MAX_COMMAND_LENGTH                         (64)  /* Denotes the max   */
@@ -282,17 +283,22 @@ static void MainThread(void)
    /* layer, create the Main application thread and start the scheduler.*/
 int main(void)
 {
-   /* Configure the hardware for its intended use.                      */
-   HAL_ConfigureHardware(&huart_debug, &huart_console);
+	//added bt tim.
+	// initializes the UART5 and the gpio for debug statements
+	Init_debugUartInit(&huart_debug);
 
+   /* Configure the hardware for its intended use.                      */
+   //HAL_ConfigureHardware(&huart_console);
+
+   UartDebug_sendstring("before main!");
    /* Enable interrupts and call the main application thread.           */
-   MainThread();
+   //MainThread();
 
    /* MainThread should run continously, if it exits an error occured.  */
    while(1)
    {
       ToggleLED(NULL);
-
+      UartDebug_sendstring("In Toggle LED loop");
       BTPS_Delay(1000);
    }
 }

@@ -46,7 +46,7 @@
    /*          be any available GPIO but CTS must be a GPIO that can be */
    /*          mapped to an available EXTI line.  The RESET pin may be  */
    /*          any available GPIO.                                      */
-#define HCITR_UART               2
+#define HCITR_UART               2 //changed from uart 2 so I could test debug on uart 2. !! change back
 
 #define HCITR_TXD_PORT           A
 #define HCITR_TXD_PIN            2
